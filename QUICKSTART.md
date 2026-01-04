@@ -1,8 +1,8 @@
-# Filo Quick Start Guide
+# Filo Quick Start Guide (v0.2.0)
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-## Installation
+> \u2728 **New in v0.2.0**: Batch processing, JSON/SARIF export, container detection, performance profiling, and enhanced CLI output. See sections 5-9 below.\n\n## Installation
 
 ```bash
 # Clone the repository
@@ -99,15 +99,92 @@ Changes Made:
   • Added PDF-1.7 header
 ```
 
-### 5. JSON Output for Scripting
+### 5. Batch Process Directories
 
-Get machine-readable output:
+Analyze entire directories efficiently:
 
 ```bash
-filo analyze file.bin --json | jq '.format'
+# Process all files in directory
+filo batch ./data
+
+# With filters and parallel processing
+filo batch ./data --max-workers=8 --max-size=10485760
 ```
 
-### 6. Offline ML Learning
+**Example Output:**
+```
+     Batch Processing Results     
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ Metric      ┃            Value ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ Total Files │               42 │
+│ Analyzed    │               42 │
+│ Failed      │                0 │
+│ Duration    │            0.15s │
+│ Speed       │   280.0 files/sec│
+└─────────────┴──────────────────┘
+```
+
+### 6. Export Analysis Results
+
+Export to JSON or SARIF for CI/CD integration:
+
+```bash
+# Export to JSON
+filo analyze --export=json --output=report.json file.bin
+
+# Export to SARIF (for GitHub Security)
+filo batch --export=sarif --output=scan.sarif ./directory
+
+# Pipe to jq for processing
+filo analyze --export=json file.bin | jq '.primary_format'
+```
+
+### 7. Analyze Containers
+
+Recursively analyze ZIP/TAR archives:
+
+```bash
+# Analyze container contents
+filo analyze --container archive.zip
+```
+
+**Example Output:**
+```
+┏━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Property       ┃ Value ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Container Type │ ZIP   │
+│ Total Entries  │ 15    │
+│ Analyzed       │ 15    │
+└────────────────┴───────┘
+```
+
+### 8. Performance Profiling
+
+Identify bottlenecks in large file analysis:
+
+```bash
+# Profile file analysis
+filo profile large_file.dat
+
+# Show top operations
+filo profile --top=20 dataset.bin
+```
+
+### 9. Enhanced CLI Output
+
+Color-coded confidence and hex dumps:
+
+```bash
+# Show hex dump with analysis
+filo analyze --hex-dump file.bin
+
+# Custom hex size
+filo analyze --hex-dump --hex-bytes=128 file.bin
+```
+
+### 10. Offline ML Learning
 
 Teach Filo when it makes mistakes (fully offline, no cloud):
 
@@ -126,19 +203,42 @@ filo analyze mystery.bin
 
 The more you use it and correct it, the better it gets. All learning stays local in `models/learned_patterns.pkl`.
 
-## Python API
+## Python API (v0.2.0)
 
-Use Filo programmatically:
+Filo provides a comprehensive Python API:
 
 ```python
 from filo import Analyzer, RepairEngine
+from filo.batch import analyze_directory, BatchConfig
+from filo.export import export_to_file
+from filo.container import analyze_archive
+from filo.profiler import profile_session
 
-# Analyze a file
+# Core Analysis
 analyzer = Analyzer()
 result = analyzer.analyze_file("mystery.bin")
 print(f"Format: {result.primary_format} ({result.confidence:.0%})")
 
-# Repair a file
+# Batch Processing
+batch_result = analyze_directory("./data", recursive=True, max_workers=8)
+print(f"Analyzed {batch_result.analyzed_count} files in {batch_result.duration:.2f}s")
+
+# Export to JSON/SARIF
+export_to_file(result, "report.json", format="json")
+export_to_file(batch_result, "scan.sarif", format="sarif")
+
+# Container Analysis
+container = analyze_archive("archive.zip")
+for entry in container.entries:
+    print(f"{entry.path}: {entry.format}")
+
+# Performance Profiling
+with profile_session() as profiler:
+    with profiler.time_operation("batch_analysis"):
+        analyze_directory("./data")
+    print(profiler.get_report().format_report())
+
+# File Repair
 engine = RepairEngine()
 repaired, report = engine.repair_file(
     "corrupted.png",
@@ -172,22 +272,50 @@ xdg-open flag.png  # Shows the flag!
 
 ## Advanced Features
 
-### Deep Analysis
+### Enhanced Analysis Output
 
 ```bash
-filo analyze --deep suspicious.bin
+# Show hex dump with color-coded confidence
+filo analyze --hex-dump suspicious.bin
+
+# Export with container analysis
+filo analyze --container --export=json archive.zip
 ```
 
-### Multiple Files
+### Batch Processing with Filters
 
 ```bash
-find . -type f -exec filo analyze --json {} + | jq
+# Process directory with size limit
+filo batch ./data --max-size=10485760 --max-workers=8
+
+# Exclude patterns
+filo batch ./data --exclude="*.log" --exclude="*.tmp"
+
+# Export batch results
+filo batch ./data --export=sarif --output=scan.sarif
 ```
 
-### Format Filtering
+### Performance Analysis
 
 ```bash
+# Profile analysis performance
+filo profile large_dataset.bin --top=20
+
+# Batch with profiling
+filo batch ./data --profile
+```
+
+### Format Database
+
+```bash
+# List all formats
+filo formats list
+
+# Filter by category
 filo formats list --category=raster_image
+
+# Show format details
+filo formats show png
 ```
 
 ## Current Capabilities

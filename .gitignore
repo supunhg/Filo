@@ -47,3 +47,7 @@ carved/
 repaired/
 *.filo-backup
 filo_evidence/
+
+# Custom
+docs/
+COMMIT_GUIDE.md

@@ -37,14 +37,11 @@ pip install -e .
 # Analyze unknown file
 filo analyze suspicious.bin
 
-# Analyze with hex dump and export
-filo analyze --hex-dump --export=json --output=report.json file.bin
+# Analyze with JSON output
+filo analyze --json file.bin > report.json
 
 # Batch process directory
 filo batch ./directory
-
-# Analyze container (ZIP/TAR)
-filo analyze --container archive.zip
 
 # Repair corrupted file
 filo repair --format=png broken_image.bin
@@ -135,20 +132,17 @@ repaired_data, report = repair.repair_file("corrupt.png")
 
 ### CLI
 ```bash
-# Enhanced analysis with hex dump
-filo analyze --hex-dump --hex-bytes=128 suspicious.bin
+# Analysis with JSON output
+filo analyze --json suspicious.bin
 
 # Batch processing with export
 filo batch ./directory --export=sarif --output=scan.sarif
 
-# Container analysis
-filo analyze --container archive.zip
-
 # Performance profiling
-filo profile --top=20 large_dataset.bin
+filo profile --show-stats large_dataset.bin
 
 # Export to JSON for scripting
-filo analyze --export=json file.bin | jq '.primary_format'
+filo analyze --json file.bin | jq '.primary_format'
 ```
 
 ## Documentation

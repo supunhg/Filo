@@ -8,7 +8,7 @@ from filo.export import JSONExporter, SARIFExporter, export_to_file
 from filo.container import ContainerDetector, analyze_archive
 from filo.profiler import Profiler, profile_session
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Supun Hewagamage"
 __all__ = [
     "Analyzer", 

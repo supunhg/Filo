@@ -2,7 +2,7 @@
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-> ✨ **New in v0.2.0**: Batch processing, JSON/SARIF export, container detection, performance profiling, and enhanced CLI output. See sections 5-9 below.
+> ✨ **New in v0.2.0**: Batch processing, JSON/SARIF export, performance profiling, and offline ML learning. See sections 5-8 below.
 
 ## Installation
 
@@ -159,37 +159,17 @@ filo batch ./data --max-workers=8 --max-size=10485760
 Export to JSON or SARIF for CI/CD integration:
 
 ```bash
-# Export to JSON
-filo analyze --export=json --output=report.json file.bin
+# Export to JSON (using --json flag)
+filo analyze --json file.bin > report.json
 
-# Export to SARIF (for GitHub Security)
+# Export to SARIF (for GitHub Security) via batch command
 filo batch --export=sarif --output=scan.sarif ./directory
 
 # Pipe to jq for processing
-filo analyze --export=json file.bin | jq '.primary_format'
+filo analyze --json file.bin | jq '.primary_format'
 ```
 
-### 7. Analyze Containers
-
-Recursively analyze ZIP/TAR archives:
-
-```bash
-# Analyze container contents
-filo analyze --container archive.zip
-```
-
-**Example Output:**
-```
-┏━━━━━━━━━━━━━━━━┳━━━━━━━┓
-┃ Property       ┃ Value ┃
-┡━━━━━━━━━━━━━━━━╇━━━━━━━┩
-│ Container Type │ ZIP   │
-│ Total Entries  │ 15    │
-│ Analyzed       │ 15    │
-└────────────────┴───────┘
-```
-
-### 8. Performance Profiling
+### 7. Performance Profiling
 
 Identify bottlenecks in large file analysis:
 
@@ -304,11 +284,8 @@ xdg-open flag.png  # Shows the flag!
 ### Enhanced Analysis Output
 
 ```bash
-# Show hex dump with color-coded confidence
-filo analyze --hex-dump suspicious.bin
-
-# Export with container analysis
-filo analyze --container --export=json archive.zip
+# Analyze with JSON output for scripting
+filo analyze --json suspicious.bin
 ```
 
 ### Batch Processing with Filters
@@ -328,10 +305,10 @@ filo batch ./data --export=sarif --output=scan.sarif
 
 ```bash
 # Profile analysis performance
-filo profile large_dataset.bin --top=20
+filo profile large_dataset.bin --show-stats
 
-# Batch with profiling
-filo batch ./data --profile
+# Note: Batch processing uses parallel workers automatically
+filo batch ./data --workers=8
 ```
 
 ### Format Database

@@ -11,8 +11,10 @@ Welcome to Filo! This guide will get you up and running in 5 minutes.
 **For Ubuntu/Debian users:**
 
 ```bash
-# Download the .deb package
-wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+# Clone and build
+git clone https://github.com/supunhg/Filo
+cd Filo
+./build-deb.sh
 
 # Install
 sudo dpkg -i filo-forensics_0.2.0_all.deb
@@ -26,8 +28,6 @@ filo --version
 - ✅ Automatic dependency installation
 - ✅ Works from anywhere (global `filo` command)
 - ✅ Isolated installation (no system conflicts)
-
-📖 [Full .deb Installation Guide](https://github.com/supunhg/Filo/blob/release/INSTALL_DEB.md)
 
 ### Option 2: From Source
 

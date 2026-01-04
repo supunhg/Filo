@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+BIN_LINK="/usr/local/bin/filo"
+
+# Remove executable wrapper
+if [ -f "$BIN_LINK" ]; then
+    rm -f "$BIN_LINK"
+fi
+
+exit 0

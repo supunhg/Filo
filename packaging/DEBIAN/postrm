@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+INSTALL_DIR="/opt/filo"
+
+# Remove installation directory on purge
+if [ "$1" = "purge" ]; then
+    rm -rf "$INSTALL_DIR"
+    echo "Filo has been completely removed"
+fi
+
+exit 0

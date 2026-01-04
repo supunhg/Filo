@@ -1,0 +1,18 @@
+Package: filo-forensics
+Version: 0.2.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.10), python3-pip, python3-venv
+Maintainer: Supun Hewagamage <supunhg@users.noreply.github.com>
+Description: Forensic Intelligence & Ligation Orchestrator
+ Battle-tested file forensics platform for security professionals.
+ Filo transforms unknown binary blobs into classified, repairable,
+ and explainable artifacts with offline ML learning capabilities.
+ .
+ Features:
+  - Deep file analysis with signature and structural detection
+  - Smart ZIP-based format detection (DOCX, XLSX, ODT, etc.)
+  - Enhanced ML learning with pattern extraction
+  - Intelligent file repair engine
+  - Batch processing and export capabilities

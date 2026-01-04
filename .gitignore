@@ -48,3 +48,7 @@ repaired/
 *.filo-backup
 filo_evidence/
 models/learned_patterns.pkl
+
+# Packaging
+*.deb
+build/

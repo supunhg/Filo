@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+INSTALL_DIR="/opt/filo"
+BIN_LINK="/usr/local/bin/filo"
+
+# Create virtual environment
+python3 -m venv $INSTALL_DIR/venv
+
+# Install package in virtual environment
+$INSTALL_DIR/venv/bin/pip install --quiet --upgrade pip
+$INSTALL_DIR/venv/bin/pip install --quiet -e $INSTALL_DIR
+
+# Create executable wrapper
+cat > $BIN_LINK << 'EOF'
+#!/bin/bash
+exec /opt/filo/venv/bin/python -m filo.cli "$@"
+EOF
+
+chmod +x $BIN_LINK
+
+echo "Filo installed successfully!"
+echo "Run 'filo --help' to get started"
+
+exit 0

@@ -20,8 +20,12 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 
 **Option 1: Easy Install (.deb package)**
 ```bash
-# Download and install
-wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+# Clone and build
+git clone https://github.com/supunhg/Filo
+cd Filo
+./build-deb.sh
+
+# Install
 sudo dpkg -i filo-forensics_0.2.0_all.deb
 ```
 
@@ -57,11 +61,15 @@ filo repair --format=png broken_image.bin
 
 ### 📦 Easy Install (Recommended) - Debian/Ubuntu
 
-The easiest way to install Filo is using our `.deb` package:
+The easiest way to install Filo is to build and install the `.deb` package:
 
 ```bash
-# Download from GitHub Releases
-wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+# Clone repository
+git clone https://github.com/supunhg/Filo
+cd Filo
+
+# Build .deb package
+./build-deb.sh
 
 # Install
 sudo dpkg -i filo-forensics_0.2.0_all.deb
@@ -79,8 +87,6 @@ filo analyze file.bin
 - ✅ Clean uninstall: `sudo dpkg -r filo-forensics`
 
 **Supported:** Ubuntu 20.04+, Debian 11+, and compatible distributions
-
-📖 [Full .deb Installation Guide](https://github.com/supunhg/Filo/blob/release/INSTALL_DEB.md)
 
 ### From Source (Development)
 

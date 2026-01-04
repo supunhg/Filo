@@ -1,0 +1,55 @@
+format: jpeg
+version: "1.0"
+mime:
+  - "image/jpeg"
+  - "image/jpg"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - jpg
+  - jpeg
+  - jpe
+
+description: "JPEG - Joint Photographic Experts Group lossy image format"
+references:
+  - "https://www.w3.org/Graphics/JPEG/"
+
+signatures:
+  - offset: 0
+    hex: "FFD8FFE0"
+    description: "JPEG JFIF"
+    weight: 1.0
+  - offset: 0
+    hex: "FFD8FFE1"
+    description: "JPEG Exif"
+    weight: 1.0
+  - offset: 0
+    hex: "FFD8FFDB"
+    description: "JPEG raw"
+    weight: 0.9
+
+footers:
+  - hex: "FFD9"
+    description: "End of Image marker"
+
+structure:
+  header_size: 2
+
+templates:
+  jfif:
+    hex: "FFD8FFE000104A46494600010101{{dpi}}{{dpi}}0000"
+    variables:
+      dpi: "uint16be"
+
+repair_strategies:
+  - name: "add_soi_marker"
+    priority: 1
+    description: "Add Start of Image marker (FFD8)"
+  - name: "reconstruct_jfif_header"
+    priority: 2
+    description: "Reconstruct JFIF APP0 segment"
+
+validation:
+  - command: ["jpeginfo", "-c", "{file}"]
+    success_codes: [0]
+    description: "Validate JPEG structure"

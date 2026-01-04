@@ -1,0 +1,25 @@
+format: dmg
+version: "1.0"
+mime:
+  - application/x-apple-diskimage
+category: archive
+confidence_weight: 0.9
+extensions:
+  - .dmg
+
+signatures:
+  - offset: 0
+    hex: "7801730D626260"
+    description: "DMG header (compressed)"
+    weight: 0.85
+  - offset: 0
+    hex: "78017801"
+    description: "DMG header variant"
+    weight: 0.8
+
+structure:
+  endianness: big
+
+description: "Apple Disk Image"
+references:
+  - "https://en.wikipedia.org/wiki/Apple_Disk_Image"

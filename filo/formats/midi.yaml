@@ -1,0 +1,22 @@
+format: midi
+version: "1.0"
+mime:
+  - audio/midi
+category: audio
+confidence_weight: 0.95
+extensions:
+  - .mid
+  - .midi
+
+signatures:
+  - offset: 0
+    hex: "4D546864"
+    description: "MIDI header"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "Musical Instrument Digital Interface"
+references:
+  - "https://en.wikipedia.org/wiki/MIDI"

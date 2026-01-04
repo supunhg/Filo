@@ -1,0 +1,50 @@
+format: pdf
+version: "1.7"
+mime:
+  - "application/pdf"
+category: document
+confidence_weight: 0.9
+extensions:
+  - pdf
+
+description: "Portable Document Format"
+references:
+  - "https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf"
+
+signatures:
+  - offset: 0
+    hex: "25504446"
+    description: "PDF header (%PDF)"
+    weight: 1.0
+  - offset: 0
+    hex: "255044462D312E"
+    description: "PDF version header"
+    weight: 0.95
+
+footers:
+  - hex: "2525454F46"
+    description: "%%EOF marker"
+
+structure:
+  header_size: 8
+
+templates:
+  pdf17:
+    hex: "255044462D312E370D0A"
+    variables: {}
+  pdf14:
+    hex: "255044462D312E340D0A"
+    variables: {}
+
+repair_strategies:
+  - name: "add_pdf_header"
+    priority: 1
+    description: "Add PDF-1.7 header"
+  - name: "add_eof_marker"
+    priority: 2
+    description: "Add %%EOF footer"
+
+validation:
+  - command: ["pdfinfo", "{file}"]
+    success_codes: [0]
+    description: "Validate PDF structure"

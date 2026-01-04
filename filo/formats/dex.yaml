@@ -1,0 +1,25 @@
+format: dex
+version: "1.0"
+mime:
+  - application/vnd.android.dex
+category: executable
+confidence_weight: 0.95
+extensions:
+  - .dex
+
+signatures:
+  - offset: 0
+    hex: "6465780A30333500"
+    description: "DEX version 035"
+    weight: 0.95
+  - offset: 0
+    hex: "6465780A30333800"
+    description: "DEX version 038"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Dalvik Executable (Android)"
+references:
+  - "https://source.android.com/devices/tech/dalvik/dex-format"

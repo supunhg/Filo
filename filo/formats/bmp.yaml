@@ -1,0 +1,30 @@
+format: bmp
+version: "1.0"
+mime:
+  - "image/bmp"
+  - "image/x-bmp"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - bmp
+  - dib
+
+description: "Windows Bitmap"
+
+signatures:
+  - offset: 0
+    hex: "424D"
+    description: "BM signature"
+    weight: 1.0
+
+structure:
+  header_size: 14
+
+templates:
+  default:
+    hex: "424D"
+    variables: {}
+
+repair_strategies:
+  - name: "add_bmp_header"
+    priority: 1

@@ -1,0 +1,26 @@
+format: doc
+version: "97-2003"
+mime:
+  - application/msword
+category: document
+confidence_weight: 0.9
+extensions:
+  - .doc
+
+signatures:
+  - offset: 0
+    hex: "D0CF11E0A1B11AE1"
+    description: "OLE2 Compound File header"
+    weight: 0.7
+  - offset: 512
+    hex: "ECA5C100"
+    description: "Word Document signature"
+    weight: 0.9
+
+structure:
+  endianness: little
+  header_size: 512
+
+description: "Microsoft Word 97-2003 Document"
+references:
+  - "https://en.wikipedia.org/wiki/Microsoft_Word"

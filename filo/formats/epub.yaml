@@ -1,0 +1,37 @@
+format: epub
+version: "3.0"
+mime:
+  - application/epub+zip
+category: document
+confidence_weight: 0.95
+extensions:
+  - .epub
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (EPUB is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "6D696D6574797065"
+    description: "mimetype file"
+    weight: 0.9
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+structure:
+  chunks:
+    - id: "mimetype"
+      required: true
+      position: null
+      min_count: 1
+    - id: "META-INF/container.xml"
+      required: true
+      position: null
+      min_count: 1
+
+description: "Electronic Publication (EPUB)"
+references:
+  - "https://www.w3.org/publishing/epub3/"

@@ -1,0 +1,25 @@
+format: aac
+version: "1.0"
+mime:
+  - audio/aac
+category: audio
+confidence_weight: 0.9
+extensions:
+  - .aac
+
+signatures:
+  - offset: 0
+    hex: "FFF1"
+    description: "AAC ADTS sync word (MPEG-4)"
+    weight: 0.85
+  - offset: 0
+    hex: "FFF9"
+    description: "AAC ADTS sync word (MPEG-2)"
+    weight: 0.85
+
+structure:
+  endianness: big
+
+description: "Advanced Audio Coding"
+references:
+  - "https://en.wikipedia.org/wiki/Advanced_Audio_Coding"

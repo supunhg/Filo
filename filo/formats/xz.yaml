@@ -1,0 +1,23 @@
+format: xz
+version: "1.0"
+mime:
+  - "application/x-xz"
+category: archive
+confidence_weight: 0.95
+extensions:
+  - xz
+
+description: "XZ compressed file"
+
+signatures:
+  - offset: 0
+    hex: "FD377A585A00"
+    description: "XZ signature"
+    weight: 1.0
+
+structure:
+  header_size: 6
+
+repair_strategies:
+  - name: "add_xz_header"
+    priority: 1

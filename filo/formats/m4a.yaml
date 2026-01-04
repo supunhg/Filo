@@ -1,0 +1,24 @@
+format: m4a
+version: "1.0"
+mime:
+  - audio/mp4
+  - audio/x-m4a
+category: audio
+confidence_weight: 0.9
+extensions:
+  - .m4a
+  - .m4b
+  - .m4p
+
+signatures:
+  - offset: 4
+    hex: "667479704D344120"
+    description: "M4A ftyp marker"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "MPEG-4 Audio"
+references:
+  - "https://en.wikipedia.org/wiki/MPEG-4_Part_14"

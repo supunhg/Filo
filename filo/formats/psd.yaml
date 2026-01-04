@@ -1,0 +1,21 @@
+format: psd
+version: "1.0"
+mime:
+  - image/vnd.adobe.photoshop
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - .psd
+
+signatures:
+  - offset: 0
+    hex: "38425053"
+    description: "8BPS (Photoshop) signature"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "Adobe Photoshop Document"
+references:
+  - "https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/"

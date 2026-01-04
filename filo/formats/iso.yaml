@@ -1,0 +1,24 @@
+format: iso
+version: "1.0"
+mime:
+  - "application/x-iso9660-image"
+category: disk_image
+confidence_weight: 0.85
+extensions:
+  - iso
+
+description: "ISO 9660 CD/DVD image"
+
+signatures:
+  - offset: 32769
+    hex: "4344303031"
+    description: "CD001 signature"
+    weight: 1.0
+  - offset: 34817
+    hex: "4344303031"
+    description: "CD001 alternate"
+    weight: 0.9
+
+repair_strategies:
+  - name: "rebuild_iso_header"
+    priority: 1

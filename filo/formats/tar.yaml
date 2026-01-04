@@ -1,0 +1,21 @@
+format: tar
+version: "1.0"
+mime:
+  - application/x-tar
+category: archive
+confidence_weight: 0.85
+extensions:
+  - .tar
+
+signatures:
+  - offset: 257
+    hex: "7573746172"
+    description: "ustar indicator"
+    weight: 0.9
+
+structure:
+  header_size: 512
+
+description: "Tape Archive"
+references:
+  - "https://en.wikipedia.org/wiki/Tar_(computing)"

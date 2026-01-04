@@ -1,0 +1,21 @@
+format: class
+version: "1.0"
+mime:
+  - application/java-vm
+category: executable
+confidence_weight: 0.95
+extensions:
+  - .class
+
+signatures:
+  - offset: 0
+    hex: "CAFEBABE"
+    description: "Java class file signature"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "Java Class File"
+references:
+  - "https://en.wikipedia.org/wiki/Java_class_file"

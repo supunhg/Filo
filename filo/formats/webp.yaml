@@ -1,0 +1,27 @@
+format: webp
+version: "1.0"
+mime:
+  - "image/webp"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - webp
+
+description: "WebP image format"
+
+signatures:
+  - offset: 0
+    hex: "52494646"
+    description: "RIFF header"
+    weight: 0.7
+  - offset: 8
+    hex: "57454250"
+    description: "WEBP signature"
+    weight: 1.0
+
+structure:
+  header_size: 12
+
+repair_strategies:
+  - name: "add_webp_header"
+    priority: 1

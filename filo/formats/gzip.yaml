@@ -1,0 +1,25 @@
+format: gzip
+version: "1.0"
+mime:
+  - "application/gzip"
+  - "application/x-gzip"
+category: archive
+confidence_weight: 0.95
+extensions:
+  - gz
+  - gzip
+
+description: "GNU Zip compressed file"
+
+signatures:
+  - offset: 0
+    hex: "1F8B"
+    description: "gzip signature"
+    weight: 1.0
+
+structure:
+  header_size: 10
+
+repair_strategies:
+  - name: "add_gzip_header"
+    priority: 1

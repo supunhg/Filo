@@ -1,0 +1,41 @@
+format: rar
+version: "5.0"
+mime:
+  - "application/x-rar-compressed"
+  - "application/vnd.rar"
+category: archive
+confidence_weight: 0.9
+extensions:
+  - rar
+
+description: "RAR archive format"
+references:
+  - "https://www.rarlab.com/technote.htm"
+
+signatures:
+  - offset: 0
+    hex: "526172211A0700"
+    description: "RAR 1.5+"
+    weight: 1.0
+  - offset: 0
+    hex: "526172211A070100"
+    description: "RAR 5.0+"
+    weight: 1.0
+
+structure:
+  header_size: 7
+
+templates:
+  rar5:
+    hex: "526172211A070100"
+    variables: {}
+
+repair_strategies:
+  - name: "add_rar_signature"
+    priority: 1
+    description: "Add RAR signature"
+
+validation:
+  - command: ["unrar", "t", "{file}"]
+    success_codes: [0]
+    description: "Test RAR integrity"

@@ -1,0 +1,24 @@
+format: flac
+version: "1.0"
+mime:
+  - "audio/flac"
+  - "audio/x-flac"
+category: audio
+confidence_weight: 0.95
+extensions:
+  - flac
+
+description: "Free Lossless Audio Codec"
+
+signatures:
+  - offset: 0
+    hex: "664C6143"
+    description: "fLaC signature"
+    weight: 1.0
+
+structure:
+  header_size: 4
+
+repair_strategies:
+  - name: "add_flac_header"
+    priority: 1

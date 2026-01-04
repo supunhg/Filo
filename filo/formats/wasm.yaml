@@ -1,0 +1,27 @@
+format: wasm
+version: "1.0"
+mime:
+  - "application/wasm"
+category: executable
+confidence_weight: 0.95
+extensions:
+  - wasm
+
+description: "WebAssembly binary format"
+
+signatures:
+  - offset: 0
+    hex: "00 61736D"
+    description: "WASM magic number"
+    weight: 1.0
+  - offset: 4
+    hex: "01000000"
+    description: "WASM version 1"
+    weight: 0.8
+
+structure:
+  header_size: 8
+
+repair_strategies:
+  - name: "add_wasm_header"
+    priority: 1

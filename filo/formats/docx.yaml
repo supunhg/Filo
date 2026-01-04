@@ -1,0 +1,37 @@
+format: docx
+version: "1.0"
+mime:
+  - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+category: document
+confidence_weight: 0.95
+extensions:
+  - .docx
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (DOCX is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "776F7264"
+    description: "word/ directory marker"
+    weight: 0.9
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+structure:
+  chunks:
+    - id: "[Content_Types].xml"
+      required: true
+      position: null
+      min_count: 1
+    - id: "word/document.xml"
+      required: true
+      position: null
+      min_count: 1
+
+description: "Microsoft Office Open XML Word Document"
+references:
+  - "https://en.wikipedia.org/wiki/Office_Open_XML"

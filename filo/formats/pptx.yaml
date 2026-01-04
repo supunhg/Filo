@@ -1,0 +1,37 @@
+format: pptx
+version: "1.0"
+mime:
+  - application/vnd.openxmlformats-officedocument.presentationml.presentation
+category: document
+confidence_weight: 0.95
+extensions:
+  - .pptx
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (PPTX is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "707074"
+    description: "ppt/ directory marker"
+    weight: 0.9
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+structure:
+  chunks:
+    - id: "[Content_Types].xml"
+      required: true
+      position: null
+      min_count: 1
+    - id: "ppt/presentation.xml"
+      required: true
+      position: null
+      min_count: 1
+
+description: "Microsoft Office Open XML PowerPoint Presentation"
+references:
+  - "https://en.wikipedia.org/wiki/Office_Open_XML"

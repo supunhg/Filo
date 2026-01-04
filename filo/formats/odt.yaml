@@ -1,0 +1,26 @@
+format: odt
+version: "1.0"
+mime:
+  - application/vnd.oasis.opendocument.text
+category: document
+confidence_weight: 0.95
+extensions:
+  - .odt
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (ODT is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "6D696D65747970656170706C69636174696F6E2F766E642E6F617369732E6F70656E646F63756D656E742E74657874"
+    description: "mimetype application/vnd.oasis.opendocument.text"
+    weight: 0.95
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+description: "OpenDocument Text Document"
+references:
+  - "https://en.wikipedia.org/wiki/OpenDocument"

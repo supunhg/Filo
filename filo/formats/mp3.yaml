@@ -1,0 +1,56 @@
+format: mp3
+version: "2.5"
+mime:
+  - "audio/mpeg"
+  - "audio/mp3"
+category: audio
+confidence_weight: 0.85
+extensions:
+  - mp3
+
+description: "MPEG-1 Audio Layer III"
+references:
+  - "https://www.iso.org/standard/22412.html"
+
+signatures:
+  - offset: 0
+    hex: "FFFB"
+    description: "MP3 frame sync (MPEG-1 Layer 3)"
+    weight: 0.8
+  - offset: 0
+    hex: "FFF3"
+    description: "MP3 frame sync (MPEG-1 Layer 3 with CRC)"
+    weight: 0.8
+  - offset: 0
+    hex: "494433"
+    description: "ID3v2 tag"
+    weight: 0.9
+
+structure:
+  chunks:
+    - id: "id3v2"
+      required: false
+      position: 0
+    - id: "audio_frames"
+      required: true
+      min_count: 1
+    - id: "id3v1"
+      required: false
+
+templates:
+  minimal:
+    hex: "FFFB90"
+    variables: {}
+
+repair_strategies:
+  - name: "add_frame_sync"
+    priority: 1
+    description: "Add MP3 frame sync header"
+  - name: "strip_corruption"
+    priority: 2
+    description: "Remove corrupted frames"
+
+validation:
+  - command: ["mp3val", "{file}"]
+    success_codes: [0]
+    description: "Validate MP3 structure"

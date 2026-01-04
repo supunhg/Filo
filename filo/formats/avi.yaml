@@ -1,0 +1,25 @@
+format: avi
+version: "1.0"
+mime:
+  - video/x-msvideo
+category: video
+confidence_weight: 0.9
+extensions:
+  - .avi
+
+signatures:
+  - offset: 0
+    hex: "52494646"
+    description: "RIFF header"
+    weight: 0.5
+  - offset: 8
+    hex: "41564920"
+    description: "AVI marker"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Audio Video Interleave"
+references:
+  - "https://en.wikipedia.org/wiki/Audio_Video_Interleave"

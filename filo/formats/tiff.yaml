@@ -1,0 +1,28 @@
+format: tiff
+version: "6.0"
+mime:
+  - "image/tiff"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - tiff
+  - tif
+
+description: "Tagged Image File Format"
+
+signatures:
+  - offset: 0
+    hex: "49492A00"
+    description: "TIFF little-endian"
+    weight: 1.0
+  - offset: 0
+    hex: "4D4D002A"
+    description: "TIFF big-endian"
+    weight: 1.0
+
+structure:
+  header_size: 8
+
+repair_strategies:
+  - name: "add_tiff_header"
+    priority: 1

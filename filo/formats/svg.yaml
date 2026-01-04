@@ -1,0 +1,22 @@
+format: svg
+version: "1.1"
+mime:
+  - image/svg+xml
+category: vector_image
+confidence_weight: 0.9
+extensions:
+  - .svg
+
+signatures:
+  - offset: 0
+    hex: "3C737667"
+    description: "<svg opening tag"
+    weight: 0.85
+  - offset: 0
+    hex: "3C3F786D6C"
+    description: "<?xml declaration"
+    weight: 0.7
+
+description: "Scalable Vector Graphics"
+references:
+  - "https://www.w3.org/TR/SVG/"

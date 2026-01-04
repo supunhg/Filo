@@ -1,0 +1,26 @@
+format: ppt
+version: "97-2003"
+mime:
+  - application/vnd.ms-powerpoint
+category: document
+confidence_weight: 0.9
+extensions:
+  - .ppt
+
+signatures:
+  - offset: 0
+    hex: "D0CF11E0A1B11AE1"
+    description: "OLE2 Compound File header"
+    weight: 0.7
+  - offset: 512
+    hex: "A0461DF0"
+    description: "PowerPoint signature"
+    weight: 0.9
+
+structure:
+  endianness: little
+  header_size: 512
+
+description: "Microsoft PowerPoint 97-2003 Presentation"
+references:
+  - "https://en.wikipedia.org/wiki/Microsoft_PowerPoint"

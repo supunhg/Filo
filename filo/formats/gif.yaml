@@ -1,0 +1,46 @@
+format: gif
+version: "89a"
+mime:
+  - "image/gif"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - gif
+
+description: "Graphics Interchange Format - Lossless bitmap image format"
+references:
+  - "https://www.w3.org/Graphics/GIF/spec-gif89a.txt"
+
+signatures:
+  - offset: 0
+    hex: "474946383961"
+    description: "GIF89a signature"
+    weight: 1.0
+  - offset: 0
+    hex: "474946383761"
+    description: "GIF87a signature"
+    weight: 1.0
+
+footers:
+  - hex: "003B"
+    description: "GIF trailer"
+
+structure:
+  header_size: 6
+
+templates:
+  gif89a:
+    hex: "474946383961{{width}}{{height}}"
+    variables:
+      width: "uint16le"
+      height: "uint16le"
+
+repair_strategies:
+  - name: "add_gif_header"
+    priority: 1
+    description: "Add GIF89a header"
+
+validation:
+  - command: ["gifsicle", "--info", "{file}"]
+    success_codes: [0, 1]
+    description: "Validate GIF structure"

@@ -1,0 +1,19 @@
+format: rtf
+version: "1.0"
+mime:
+  - application/rtf
+  - text/rtf
+category: document
+confidence_weight: 0.95
+extensions:
+  - .rtf
+
+signatures:
+  - offset: 0
+    hex: "7B5C727466"
+    description: "{\\rtf header"
+    weight: 0.95
+
+description: "Rich Text Format"
+references:
+  - "https://en.wikipedia.org/wiki/Rich_Text_Format"

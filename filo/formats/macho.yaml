@@ -1,0 +1,33 @@
+format: macho
+version: "1.0"
+mime:
+  - application/x-mach-binary
+category: executable
+confidence_weight: 0.95
+extensions:
+  - ""
+
+signatures:
+  - offset: 0
+    hex: "FEEDFACE"
+    description: "Mach-O 32-bit"
+    weight: 0.95
+  - offset: 0
+    hex: "FEEDFACF"
+    description: "Mach-O 64-bit"
+    weight: 0.95
+  - offset: 0
+    hex: "CEFAEDFE"
+    description: "Mach-O 32-bit reverse byte order"
+    weight: 0.95
+  - offset: 0
+    hex: "CFFAEDFE"
+    description: "Mach-O 64-bit reverse byte order"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Mach-O Executable (macOS/iOS)"
+references:
+  - "https://en.wikipedia.org/wiki/Mach-O"

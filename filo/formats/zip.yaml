@@ -1,0 +1,58 @@
+format: zip
+version: "2.0"
+mime:
+  - "application/zip"
+category: archive
+confidence_weight: 0.9
+extensions:
+  - zip
+
+description: "ZIP archive format"
+references:
+  - "https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT"
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "Local file header"
+    weight: 1.0
+  - offset: 0
+    hex: "504B0506"
+    description: "End of central directory (empty archive)"
+    weight: 0.8
+  - offset: 0
+    hex: "504B0708"
+    description: "Spanned archive"
+    weight: 0.7
+
+footers:
+  - hex: "504B0506"
+    description: "End of central directory record"
+
+structure:
+  chunks:
+    - id: "local_file_header"
+      required: true
+      min_count: 0
+    - id: "central_directory"
+      required: true
+    - id: "end_of_central_directory"
+      required: true
+
+templates:
+  empty:
+    hex: "504B050600000000000000000000000000000000000000000000"
+    variables: {}
+
+repair_strategies:
+  - name: "rebuild_central_directory"
+    priority: 1
+    description: "Rebuild central directory from local headers"
+  - name: "add_zip_header"
+    priority: 2
+    description: "Add ZIP local file header"
+
+validation:
+  - command: ["unzip", "-t", "{file}"]
+    success_codes: [0]
+    description: "Test ZIP integrity"

@@ -1,0 +1,21 @@
+format: avif
+version: "1.0"
+mime:
+  - image/avif
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - .avif
+
+signatures:
+  - offset: 4
+    hex: "6674797061766966"
+    description: "ftyp avif"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "AV1 Image File Format"
+references:
+  - "https://aomediacodec.github.io/av1-avif/"

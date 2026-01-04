@@ -1,0 +1,22 @@
+format: mkv
+version: "1.0"
+mime:
+  - video/x-matroska
+category: video
+confidence_weight: 0.95
+extensions:
+  - .mkv
+  - .webm
+
+signatures:
+  - offset: 0
+    hex: "1A45DFA3"
+    description: "EBML header"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "Matroska Multimedia Container"
+references:
+  - "https://www.matroska.org/technical/specs/index.html"

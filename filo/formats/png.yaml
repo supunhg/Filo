@@ -1,0 +1,62 @@
+format: png
+version: "1.2"
+mime: 
+  - "image/png"
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - png
+
+description: "Portable Network Graphics - Lossless raster image format"
+references:
+  - "https://www.w3.org/TR/PNG/"
+
+signatures:
+  - offset: 0
+    hex: "89504E470D0A1A0A"
+    description: "PNG signature"
+    weight: 1.0
+  - offset: 8
+    hex: "0000000D49484452"
+    description: "IHDR chunk start"
+    weight: 0.7
+
+footers:
+  - hex: "49454E44AE426082"
+    description: "IEND chunk"
+
+structure:
+  chunks:
+    - id: "IHDR"
+      required: true
+      position: 0
+      description: "Image header"
+    - id: "IDAT"
+      required: true
+      min_count: 1
+      description: "Image data"
+    - id: "IEND"
+      required: true
+      description: "Image trailer"
+  header_size: 8
+
+templates:
+  default:
+    hex: "89504E470D0A1A0A0000000D49484452{{width}}{{height}}0806000000{{crc}}"
+    variables:
+      width: "uint32be"
+      height: "uint32be"
+      crc: "crc32"
+
+repair_strategies:
+  - name: "reconstruct_from_chunks"
+    priority: 1
+    description: "Reconstruct header from existing chunks"
+  - name: "generate_minimal_header"
+    priority: 2
+    description: "Generate minimal valid header"
+
+validation:
+  - command: ["pngcheck", "-v", "{file}"]
+    success_codes: [0]
+    description: "Validate PNG structure with pngcheck"

@@ -1,0 +1,21 @@
+format: arj
+version: "1.0"
+mime:
+  - application/x-arj
+category: archive
+confidence_weight: 0.95
+extensions:
+  - .arj
+
+signatures:
+  - offset: 0
+    hex: "60EA"
+    description: "ARJ archive signature"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "ARJ Compressed Archive"
+references:
+  - "https://en.wikipedia.org/wiki/ARJ"

@@ -1,0 +1,26 @@
+format: mov
+version: "1.0"
+mime:
+  - video/quicktime
+category: video
+confidence_weight: 0.9
+extensions:
+  - .mov
+  - .qt
+
+signatures:
+  - offset: 4
+    hex: "6674797071742020"
+    description: "QuickTime ftyp marker"
+    weight: 0.9
+  - offset: 4
+    hex: "6D6F6F76"
+    description: "QuickTime moov atom"
+    weight: 0.85
+
+structure:
+  endianness: big
+
+description: "QuickTime Movie"
+references:
+  - "https://developer.apple.com/documentation/quicktime-file-format"

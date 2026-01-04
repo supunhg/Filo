@@ -1,0 +1,33 @@
+format: jar
+version: "1.0"
+mime:
+  - application/java-archive
+category: executable
+confidence_weight: 0.9
+extensions:
+  - .jar
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (JAR is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "4D4554412D494E462F"
+    description: "META-INF/ directory"
+    weight: 0.9
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+structure:
+  chunks:
+    - id: "META-INF/MANIFEST.MF"
+      required: true
+      position: null
+      min_count: 1
+
+description: "Java Archive (JAR)"
+references:
+  - "https://en.wikipedia.org/wiki/JAR_(file_format)"

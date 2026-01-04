@@ -1,0 +1,55 @@
+format: elf
+version: "1.0"
+mime:
+  - "application/x-elf"
+  - "application/x-executable"
+category: executable
+confidence_weight: 0.95
+extensions:
+  - elf
+  - so
+  - o
+
+description: "Executable and Linkable Format - Unix/Linux executable"
+references:
+  - "https://refspecs.linuxfoundation.org/elf/elf.pdf"
+
+signatures:
+  - offset: 0
+    hex: "7F454C46"
+    description: "ELF magic number"
+    weight: 1.0
+  - offset: 0
+    hex: "7F454C4601"
+    description: "ELF 32-bit"
+    weight: 1.0
+  - offset: 0
+    hex: "7F454C4602"
+    description: "ELF 64-bit"
+    weight: 1.0
+
+structure:
+  header_size: 52
+  chunks:
+    - id: "elf_header"
+      required: true
+      position: 0
+    - id: "program_header_table"
+      required: false
+    - id: "section_header_table"
+      required: false
+
+templates:
+  elf64_le:
+    hex: "7F454C4602010100000000000000000002003E0001000000"
+    variables: {}
+
+repair_strategies:
+  - name: "reconstruct_elf_header"
+    priority: 1
+    description: "Reconstruct ELF header from remaining sections"
+
+validation:
+  - command: ["readelf", "-h", "{file}"]
+    success_codes: [0]
+    description: "Validate ELF header"

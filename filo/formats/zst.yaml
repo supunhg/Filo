@@ -1,0 +1,22 @@
+format: zst
+version: "1.0"
+mime:
+  - application/zstd
+category: archive
+confidence_weight: 0.95
+extensions:
+  - .zst
+  - .zstd
+
+signatures:
+  - offset: 0
+    hex: "28B52FFD"
+    description: "Zstandard frame magic"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Zstandard Compressed Archive"
+references:
+  - "https://facebook.github.io/zstd/"

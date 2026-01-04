@@ -1,0 +1,22 @@
+format: wmv
+version: "1.0"
+mime:
+  - video/x-ms-wmv
+category: video
+confidence_weight: 0.9
+extensions:
+  - .wmv
+  - .asf
+
+signatures:
+  - offset: 0
+    hex: "3026B2758E66CF11A6D900AA0062CE6C"
+    description: "ASF header"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Windows Media Video"
+references:
+  - "https://en.wikipedia.org/wiki/Windows_Media_Video"

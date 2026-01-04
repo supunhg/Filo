@@ -1,0 +1,20 @@
+format: mobi
+version: "1.0"
+mime:
+  - application/x-mobipocket-ebook
+category: document
+confidence_weight: 0.95
+extensions:
+  - .mobi
+  - .prc
+  - .azw
+
+signatures:
+  - offset: 60
+    hex: "424F4F4B4D4F4249"
+    description: "BOOKMOBI signature"
+    weight: 0.95
+
+description: "Mobipocket eBook"
+references:
+  - "https://en.wikipedia.org/wiki/Mobipocket"

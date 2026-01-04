@@ -1,0 +1,23 @@
+format: 7z
+version: "1.0"
+mime:
+  - "application/x-7z-compressed"
+category: archive
+confidence_weight: 0.95
+extensions:
+  - 7z
+
+description: "7-Zip compressed archive"
+
+signatures:
+  - offset: 0
+    hex: "377ABCAF271C"
+    description: "7z signature"
+    weight: 1.0
+
+structure:
+  header_size: 6
+
+repair_strategies:
+  - name: "add_7z_header"
+    priority: 1

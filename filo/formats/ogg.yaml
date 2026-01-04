@@ -1,0 +1,26 @@
+format: ogg
+version: "1.0"
+mime:
+  - "audio/ogg"
+  - "video/ogg"
+category: audio
+confidence_weight: 0.9
+extensions:
+  - ogg
+  - oga
+  - ogv
+
+description: "Ogg container format"
+
+signatures:
+  - offset: 0
+    hex: "4F676753"
+    description: "OggS signature"
+    weight: 1.0
+
+structure:
+  header_size: 4
+
+repair_strategies:
+  - name: "add_ogg_header"
+    priority: 1

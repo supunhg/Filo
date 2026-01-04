@@ -1,0 +1,37 @@
+format: apk
+version: "1.0"
+mime:
+  - application/vnd.android.package-archive
+category: executable
+confidence_weight: 0.9
+extensions:
+  - .apk
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (APK is ZIP-based)"
+    weight: 0.5
+  - offset: 30
+    hex: "416E64726F69644D616E69666573742E786D6C"
+    description: "AndroidManifest.xml"
+    weight: 0.95
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+structure:
+  chunks:
+    - id: "AndroidManifest.xml"
+      required: true
+      position: null
+      min_count: 1
+    - id: "classes.dex"
+      required: true
+      position: null
+      min_count: 1
+
+description: "Android Package (APK)"
+references:
+  - "https://en.wikipedia.org/wiki/Android_application_package"

@@ -1,0 +1,22 @@
+format: odp
+version: "1.0"
+mime:
+  - application/vnd.oasis.opendocument.presentation
+category: document
+confidence_weight: 0.95
+extensions:
+  - .odp
+
+signatures:
+  - offset: 0
+    hex: "504B0304"
+    description: "ZIP header (ODP is ZIP-based)"
+    weight: 0.5
+
+footers:
+  - hex: "504B0506"
+    description: "ZIP end of central directory"
+
+description: "OpenDocument Presentation"
+references:
+  - "https://en.wikipedia.org/wiki/OpenDocument"

@@ -1,0 +1,26 @@
+format: ico
+version: "1.0"
+mime:
+  - image/vnd.microsoft.icon
+category: raster_image
+confidence_weight: 0.95
+extensions:
+  - .ico
+  - .cur
+
+signatures:
+  - offset: 0
+    hex: "00000100"
+    description: "ICO signature"
+    weight: 0.95
+  - offset: 0
+    hex: "00000200"
+    description: "CUR (cursor) signature"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Windows Icon"
+references:
+  - "https://en.wikipedia.org/wiki/ICO_(file_format)"

@@ -1,0 +1,62 @@
+format: mp4
+version: "1.0"
+mime:
+  - "video/mp4"
+  - "audio/mp4"
+category: video
+confidence_weight: 0.9
+extensions:
+  - mp4
+  - m4a
+  - m4v
+  - f4v
+
+description: "MPEG-4 Part 14 container format"
+references:
+  - "https://www.iso.org/standard/61988.html"
+
+signatures:
+  - offset: 4
+    hex: "66747970"
+    description: "ftyp box (file type)"
+    weight: 1.0
+  - offset: 4
+    hex: "6674797069736F6D"
+    description: "ftypisom"
+    weight: 0.95
+  - offset: 4
+    hex: "667479706D703432"
+    description: "ftypmp42"
+    weight: 0.95
+
+structure:
+  chunks:
+    - id: "ftyp"
+      required: true
+      position: 0
+      description: "File type box"
+    - id: "moov"
+      required: true
+      description: "Movie metadata"
+    - id: "mdat"
+      required: true
+      min_count: 1
+      description: "Media data"
+
+templates:
+  minimal:
+    hex: "0000001C667479706D703432000000006D7034326973676D6D703431"
+    variables: {}
+
+repair_strategies:
+  - name: "rebuild_ftyp"
+    priority: 1
+    description: "Rebuild file type box"
+  - name: "recover_moov"
+    priority: 2
+    description: "Recover movie metadata from mdat"
+
+validation:
+  - command: ["mp4info", "{file}"]
+    success_codes: [0]
+    description: "Validate MP4 structure"

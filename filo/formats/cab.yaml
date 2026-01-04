@@ -1,0 +1,21 @@
+format: cab
+version: "1.0"
+mime:
+  - application/vnd.ms-cab-compressed
+category: archive
+confidence_weight: 0.95
+extensions:
+  - .cab
+
+signatures:
+  - offset: 0
+    hex: "4D534346"
+    description: "MSCF (Microsoft Cabinet) signature"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "Microsoft Cabinet Archive"
+references:
+  - "https://en.wikipedia.org/wiki/Cabinet_(file_format)"

@@ -1,0 +1,21 @@
+format: dll
+version: "1.0"
+mime:
+  - application/x-msdownload
+category: executable
+confidence_weight: 0.9
+extensions:
+  - .dll
+
+signatures:
+  - offset: 0
+    hex: "4D5A"
+    description: "MZ DOS header"
+    weight: 0.7
+
+structure:
+  endianness: little
+
+description: "Dynamic Link Library (Windows)"
+references:
+  - "https://en.wikipedia.org/wiki/Dynamic-link_library"

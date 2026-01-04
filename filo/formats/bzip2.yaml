@@ -1,0 +1,24 @@
+format: bzip2
+version: "1.0"
+mime:
+  - "application/x-bzip2"
+category: archive
+confidence_weight: 0.95
+extensions:
+  - bz2
+  - bzip2
+
+description: "Bzip2 compressed file"
+
+signatures:
+  - offset: 0
+    hex: "425A68"
+    description: "BZh signature"
+    weight: 1.0
+
+structure:
+  header_size: 3
+
+repair_strategies:
+  - name: "add_bzip2_header"
+    priority: 1

@@ -1,0 +1,21 @@
+format: flv
+version: "1.0"
+mime:
+  - video/x-flv
+category: video
+confidence_weight: 0.95
+extensions:
+  - .flv
+
+signatures:
+  - offset: 0
+    hex: "464C56"
+    description: "FLV signature"
+    weight: 0.95
+
+structure:
+  endianness: big
+
+description: "Flash Video"
+references:
+  - "https://en.wikipedia.org/wiki/Flash_Video"

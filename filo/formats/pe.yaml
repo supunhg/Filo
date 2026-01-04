@@ -1,0 +1,57 @@
+format: pe
+version: "1.0"
+mime:
+  - "application/x-dosexec"
+  - "application/x-msdownload"
+category: executable
+confidence_weight: 0.95
+extensions:
+  - exe
+  - dll
+  - sys
+  - scr
+
+description: "Portable Executable - Windows executable format"
+references:
+  - "https://docs.microsoft.com/en-us/windows/win32/debug/pe-format"
+
+signatures:
+  - offset: 0
+    hex: "4D5A"
+    description: "MZ DOS header"
+    weight: 0.7
+  - offset: 0
+    hex: "4D5A90"
+    description: "MZ DOS stub"
+    weight: 0.8
+
+structure:
+  chunks:
+    - id: "dos_header"
+      required: true
+      position: 0
+    - id: "pe_signature"
+      required: true
+      description: "PE\\0\\0 at offset 0x3C"
+    - id: "coff_header"
+      required: true
+    - id: "optional_header"
+      required: true
+
+templates:
+  minimal:
+    hex: "4D5A90000300000004000000FFFF0000B800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000E1FBA0E00B409CD21B8014CCD21546869732070726F6772616D2063616E6E6F742062652072756E20696E20444F53206D6F64652E0D0D0A2400000000000000"
+    variables: {}
+
+repair_strategies:
+  - name: "reconstruct_dos_stub"
+    priority: 1
+    description: "Add minimal DOS stub"
+  - name: "fix_pe_offset"
+    priority: 2
+    description: "Fix PE signature offset"
+
+validation:
+  - command: ["file", "{file}"]
+    success_codes: [0]
+    description: "Basic PE validation"

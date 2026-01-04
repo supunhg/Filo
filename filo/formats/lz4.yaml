@@ -1,0 +1,21 @@
+format: lz4
+version: "1.0"
+mime:
+  - application/x-lz4
+category: archive
+confidence_weight: 0.95
+extensions:
+  - .lz4
+
+signatures:
+  - offset: 0
+    hex: "04224D18"
+    description: "LZ4 frame magic"
+    weight: 0.95
+
+structure:
+  endianness: little
+
+description: "LZ4 Compressed Archive"
+references:
+  - "https://github.com/lz4/lz4"

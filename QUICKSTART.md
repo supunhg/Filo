@@ -2,12 +2,41 @@
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-> \u2728 **New in v0.2.0**: Batch processing, JSON/SARIF export, container detection, performance profiling, and enhanced CLI output. See sections 5-9 below.\n\n## Installation
+> ✨ **New in v0.2.0**: Batch processing, JSON/SARIF export, container detection, performance profiling, and enhanced CLI output. See sections 5-9 below.
+
+## Installation
+
+### Option 1: Easy Install (.deb package) - Recommended
+
+**For Ubuntu/Debian users:**
+
+```bash
+# Download the .deb package
+wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+
+# Install
+sudo dpkg -i filo-forensics_0.2.0_all.deb
+
+# Verify
+filo --version
+```
+
+**Benefits:**
+- ✅ No manual virtual environment setup
+- ✅ Automatic dependency installation
+- ✅ Works from anywhere (global `filo` command)
+- ✅ Isolated installation (no system conflicts)
+
+📖 [Full .deb Installation Guide](https://github.com/supunhg/Filo/blob/release/INSTALL_DEB.md)
+
+### Option 2: From Source
+
+**For development or non-Debian systems:**
 
 ```bash
 # Clone the repository
-git clone https://github.com/filo/forensics
-cd forensics
+git clone https://github.com/supunhg/Filo
+cd Filo
 
 # Create virtual environment
 python3 -m venv venv

@@ -18,10 +18,22 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 
 ## Quick Start
 
+**Option 1: Easy Install (.deb package)**
 ```bash
-# Install
-pip install -e .
+# Download and install
+wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+sudo dpkg -i filo-forensics_0.2.0_all.deb
+```
 
+**Option 2: From Source**
+```bash
+git clone https://github.com/supunhg/Filo
+cd Filo
+pip install -e .
+```
+
+**Usage:**
+```bash
 # Analyze unknown file
 filo analyze suspicious.bin
 
@@ -43,16 +55,50 @@ filo profile large_file.dat
 
 ## Installation
 
-### From Source
+### 📦 Easy Install (Recommended) - Debian/Ubuntu
+
+The easiest way to install Filo is using our `.deb` package:
+
+```bash
+# Download from GitHub Releases
+wget https://github.com/supunhg/Filo/releases/download/v0.2.0/filo-forensics_0.2.0_all.deb
+
+# Install
+sudo dpkg -i filo-forensics_0.2.0_all.deb
+
+# Start using immediately
+filo --version
+filo analyze file.bin
+```
+
+**Features:**
+- ✅ Isolated installation at `/opt/filo/` (no system conflicts)
+- ✅ Automatic dependency management
+- ✅ Global `filo` command (works from anywhere)
+- ✅ No manual virtual environment activation
+- ✅ Clean uninstall: `sudo dpkg -r filo-forensics`
+
+**Supported:** Ubuntu 20.04+, Debian 11+, and compatible distributions
+
+📖 [Full .deb Installation Guide](https://github.com/supunhg/Filo/blob/release/INSTALL_DEB.md)
+
+### From Source (Development)
+
 ```bash
 git clone https://github.com/supunhg/Filo
 cd Filo
 pip install -e .
 ```
 
-### Development
+### Development Setup
+
 ```bash
+# Clone and install with dev dependencies
+git clone https://github.com/supunhg/Filo
+cd Filo
 pip install -e ".[dev]"
+
+# Run tests
 pytest
 ```
 

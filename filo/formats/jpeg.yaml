@@ -27,6 +27,27 @@ signatures:
     hex: "FFD8FFDB"
     description: "JPEG raw"
     weight: 0.9
+  # Fallback signatures for corrupted headers
+  - offset: 0
+    offset_max: 32
+    hex: "4A464946"
+    description: "JFIF marker (fallback)"
+    weight: 1.0
+  - offset: 0
+    offset_max: 64
+    hex: "FFDB"
+    description: "JPEG quantization table"
+    weight: 0.8
+  - offset: 0
+    offset_max: 128
+    hex: "FFC0"
+    description: "JPEG Start of Frame (baseline)"
+    weight: 0.7
+  - offset: 0
+    offset_max: 128
+    hex: "FFC4"
+    description: "JPEG Huffman table"
+    weight: 0.7
 
 footers:
   - hex: "FFD9"

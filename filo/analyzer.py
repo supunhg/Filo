@@ -53,20 +53,35 @@ class SignatureAnalyzer:
                 
                 # Convert hex string to bytes
                 sig_bytes = bytes.fromhex(sig.hex)
-                end_offset = sig.offset + len(sig_bytes)
                 
-                if end_offset <= len(scan_data):
-                    if scan_data[sig.offset:end_offset] == sig_bytes:
-                        matched_weight += sig.weight
-                        evidence.append(
-                            f"Signature match at offset {sig.offset}: {sig.description}"
-                        )
+                # If offset_max is set, scan within the range
+                if sig.offset_max is not None:
+                    found = False
+                    search_end = min(sig.offset_max, len(scan_data) - len(sig_bytes) + 1)
+                    for search_offset in range(sig.offset, search_end):
+                        if scan_data[search_offset:search_offset + len(sig_bytes)] == sig_bytes:
+                            matched_weight += sig.weight
+                            evidence.append(
+                                f"Signature match at offset {search_offset}: {sig.description}"
+                            )
+                            found = True
+                            break
+                else:
+                    # Exact offset match
+                    end_offset = sig.offset + len(sig_bytes)
+                    
+                    if end_offset <= len(scan_data):
+                        if scan_data[sig.offset:end_offset] == sig_bytes:
+                            matched_weight += sig.weight
+                            evidence.append(
+                                f"Signature match at offset {sig.offset}: {sig.description}"
+                            )
             
             # Calculate confidence
             if total_weight > 0:
                 confidence = (matched_weight / total_weight) * format_spec.confidence_weight
                 
-                if confidence > 0.3:  # Minimum threshold
+                if confidence > 0.25:  # Minimum threshold (lowered to detect corrupted files)
                     results.append(
                         DetectionResult(
                             format=format_spec.format,

@@ -33,8 +33,9 @@ def test_analyze_jpeg():
     """Test JPEG file detection."""
     analyzer = Analyzer()
     
-    # JPEG JFIF signature
-    jpeg_data = bytes.fromhex("FFD8FFE0") + b"\x00" * 100
+    # JPEG JFIF signature with proper header structure
+    # FFD8FFE0 (SOI + APP0) + size + JFIF marker + version + some data
+    jpeg_data = bytes.fromhex("FFD8FFE000104A4649460001010000010001000000") + b"\x00" * 100
     
     result = analyzer.analyze(jpeg_data)
     
@@ -92,3 +93,22 @@ def test_evidence_chain():
     
     assert len(result.evidence_chain) > 0
     assert result.evidence_chain[0]["module"] == "signature_analysis"
+
+
+def test_analyze_corrupted_jpeg():
+    """Test detection of JPEG with corrupted header but JFIF marker present."""
+    analyzer = Analyzer()
+    
+    # Corrupted JPEG: missing SOI marker but has JFIF marker and quantization table
+    # Simulates a file like \x78\xff\xe0\x00\x10JFIF...
+    corrupted_jpeg = bytes.fromhex(
+        "5c78ffe000104a46494600010101000100010000"
+        "ffdb004300080606070605080707070909080a0c140d0c0b0b0c"
+    )
+    
+    result = analyzer.analyze(corrupted_jpeg)
+    
+    # Should detect as JPEG with moderate confidence using fallback signatures
+    assert result.primary_format == "jpeg"
+    assert result.confidence > 0.25
+    assert any("JFIF marker (fallback)" in str(ev) for ev in result.evidence_chain)

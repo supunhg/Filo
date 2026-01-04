@@ -8,6 +8,7 @@ class Signature(BaseModel):
     hex: str = Field(description="Hex string signature (e.g., '89504E47')")
     description: str = Field(description="Human-readable description")
     weight: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence weight")
+    offset_max: Optional[int] = Field(default=None, description="Maximum offset to scan (creates range from offset to offset_max)")
 
 
 class ChunkSpec(BaseModel):

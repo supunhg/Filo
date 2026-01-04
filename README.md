@@ -177,7 +177,7 @@ We welcome contributions! Priority areas:
 
 ## Author
 
-Supun Hewagamage ([@supunhg](https://github.com/supunhg))fault
+Supun Hewagamage ([@supunhg](https://github.com/supunhg))
 - Non-destructive (unless explicitly requested)
 - Resource-limited
 - Input-validated

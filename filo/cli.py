@@ -70,7 +70,8 @@ def main(verbose: bool) -> None:
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--deep", is_flag=True, help="Deep analysis (slower, more thorough)")
 @click.option("--no-ml", is_flag=True, help="Disable ML-based detection")
-def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool) -> None:
+@click.option("--all-evidence", is_flag=True, help="Show all detection evidence")
+def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evidence: bool) -> None:
     """
     Analyze a file to detect its format.
     
@@ -123,7 +124,11 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool) -> None:
             # Evidence
             if result.evidence_chain:
                 console.print("\n[bold]Detection Evidence:[/bold]")
-                for evidence in result.evidence_chain:
+                
+                # Limit evidence display unless --all-evidence flag is used
+                evidence_to_show = result.evidence_chain if all_evidence else result.evidence_chain[:3]
+                
+                for evidence in evidence_to_show:
                     module = evidence.get("module", "unknown")
                     conf = evidence.get("confidence", 0)
                     evid_list = evidence.get("evidence", [])
@@ -131,6 +136,12 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool) -> None:
                     console.print(f"\n  [cyan]{module}[/cyan] (confidence: {conf:.1%})")
                     for e in evid_list:
                         console.print(f"    • {e}")
+                
+                # Show message if evidence was truncated
+                if not all_evidence and len(result.evidence_chain) > 3:
+                    remaining = len(result.evidence_chain) - 3
+                    console.print(f"\n  [dim]... and {remaining} more evidence item{'s' if remaining != 1 else ''}[/dim]")
+                    console.print(f"  [dim]Use --all-evidence flag to show all detection evidence[/dim]")
         
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}", style="bold")

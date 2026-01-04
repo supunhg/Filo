@@ -58,14 +58,15 @@ def test_analyze_pdf():
 
 def test_analyze_unknown():
     """Test unknown file detection."""
-    analyzer = Analyzer()
+    # Test without ML to check signature-only behavior
+    analyzer = Analyzer(use_ml=False)
     
     # Random data
     unknown_data = b"\x00\x11\x22\x33\x44\x55" * 20
     
     result = analyzer.analyze(unknown_data)
     
-    # Should be unknown with low confidence
+    # Should be unknown with low confidence when ML is disabled
     assert result.primary_format == "unknown"
     assert result.confidence == 0.0
 
@@ -112,3 +113,80 @@ def test_analyze_corrupted_jpeg():
     assert result.primary_format == "jpeg"
     assert result.confidence > 0.25
     assert any("JFIF marker (fallback)" in str(ev) for ev in result.evidence_chain)
+
+
+def test_analyze_office_formats():
+    """Test detection of Office Open XML formats (DOCX, PPTX, XLSX)."""
+    import zipfile
+    import io
+    
+    analyzer = Analyzer()
+    
+    # Test DOCX
+    docx_buffer = io.BytesIO()
+    with zipfile.ZipFile(docx_buffer, 'w') as zf:
+        zf.writestr('[Content_Types].xml', '<?xml version="1.0"?><Types></Types>')
+        zf.writestr('word/document.xml', '<?xml version="1.0"?><document></document>')
+    
+    result = analyzer.analyze(docx_buffer.getvalue())
+    assert result.primary_format == "docx"
+    assert result.confidence > 0.9
+    
+    # Test PPTX
+    pptx_buffer = io.BytesIO()
+    with zipfile.ZipFile(pptx_buffer, 'w') as zf:
+        zf.writestr('[Content_Types].xml', '<?xml version="1.0"?><Types></Types>')
+        zf.writestr('ppt/presentation.xml', '<?xml version="1.0"?><presentation></presentation>')
+    
+    result = analyzer.analyze(pptx_buffer.getvalue())
+    assert result.primary_format == "pptx"
+    assert result.confidence > 0.9
+    
+    # Test XLSX
+    xlsx_buffer = io.BytesIO()
+    with zipfile.ZipFile(xlsx_buffer, 'w') as zf:
+        zf.writestr('[Content_Types].xml', '<?xml version="1.0"?><Types></Types>')
+        zf.writestr('xl/workbook.xml', '<?xml version="1.0"?><workbook></workbook>')
+    
+    result = analyzer.analyze(xlsx_buffer.getvalue())
+    assert result.primary_format == "xlsx"
+    assert result.confidence > 0.9
+
+
+def test_analyze_opendocument_formats():
+    """Test detection of OpenDocument formats (ODT, ODP, ODS)."""
+    import zipfile
+    import io
+    
+    analyzer = Analyzer()
+    
+    # Test ODT
+    odt_buffer = io.BytesIO()
+    with zipfile.ZipFile(odt_buffer, 'w') as zf:
+        zf.writestr('mimetype', 'application/vnd.oasis.opendocument.text')
+        zf.writestr('content.xml', '<?xml version="1.0"?><document></document>')
+    
+    result = analyzer.analyze(odt_buffer.getvalue())
+    assert result.primary_format == "odt"
+    assert result.confidence > 0.9
+    
+    # Test ODP
+    odp_buffer = io.BytesIO()
+    with zipfile.ZipFile(odp_buffer, 'w') as zf:
+        zf.writestr('mimetype', 'application/vnd.oasis.opendocument.presentation')
+        zf.writestr('content.xml', '<?xml version="1.0"?><presentation></presentation>')
+    
+    result = analyzer.analyze(odp_buffer.getvalue())
+    assert result.primary_format == "odp"
+    assert result.confidence > 0.9
+    
+    # Test ODS
+    ods_buffer = io.BytesIO()
+    with zipfile.ZipFile(ods_buffer, 'w') as zf:
+        zf.writestr('mimetype', 'application/vnd.oasis.opendocument.spreadsheet')
+        zf.writestr('content.xml', '<?xml version="1.0"?><spreadsheet></spreadsheet>')
+    
+    result = analyzer.analyze(ods_buffer.getvalue())
+    assert result.primary_format == "ods"
+    assert result.confidence > 0.9
+

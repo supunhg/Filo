@@ -47,8 +47,4 @@ carved/
 repaired/
 *.filo-backup
 filo_evidence/
-
-# Custom
-docs/
-COMMIT_GUIDE.md
-learned_patterns.pkl
+models/learned_patterns.pkl

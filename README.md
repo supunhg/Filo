@@ -6,13 +6,13 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 
 ## Features
 
-- 🔍 **Deep File Analysis**: Signature, structural, and statistical analysis
+- 🔍 **Deep File Analysis**: Multi-layered signature, structural, and ZIP container analysis
+- 🎯 **Smart Format Detection**: Distinguishes DOCX/XLSX/PPTX, ODT/ODP/ODS, ZIP, JAR, APK, EPUB
+- 🧠 **Enhanced ML Learning**: Discriminative pattern extraction, rich statistical features, n-gram profiling
 - 🔧 **Intelligent Repair**: Reconstruct corrupted headers automatically with 21 repair strategies
-- 🧠 **Offline ML Learning**: Learns from corrections, fully offline
-- 🎯 **CTF-Optimized**: Purpose-built for capture-the-flag challenges
-- 📊 **Export Reports**: JSON and SARIF output for CI/CD integration
+- 📊 **Flexible Output**: Concise evidence display (top 3 by default), full details with --all-evidence
 - 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
-- 📦 **Container Detection**: Recursive ZIP/TAR analysis with nested support
+- 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
 - ⚡ **Performance Profiling**: Identify bottlenecks in large-scale analysis
 - 🎨 **Enhanced CLI**: Color-coded output, hex dumps, repair suggestions
 
@@ -37,17 +37,20 @@ pip install -e .
 # Analyze unknown file
 filo analyze suspicious.bin
 
+# Show all detection evidence
+filo analyze --all-evidence file.bin
+
 # Analyze with JSON output
 filo analyze --json file.bin > report.json
+
+# Teach ML about a file format
+filo teach correct_file.zip --format zip
 
 # Batch process directory
 filo batch ./directory
 
 # Repair corrupted file
 filo repair --format=png broken_image.bin
-
-# Profile performance
-filo profile large_file.dat
 ```
 
 ## Installation
@@ -108,10 +111,19 @@ from filo.batch import analyze_directory
 from filo.export import export_to_file
 from filo.container import analyze_archive
 
-# Analyze file
-analyzer = Analyzer()
+# Analyze file with ML enabled
+analyzer = Analyzer(use_ml=True)
 result = analyzer.analyze_file("unknown.bin")
 print(f"Detected: {result.primary_format} ({result.confidence:.0%})")
+print(f"Alternatives: {result.alternative_formats[:3]}")
+
+# View detection evidence
+for evidence in result.evidence_chain[:3]:
+    print(f"  {evidence['module']}: {evidence['confidence']:.0%}")
+
+# Teach ML about correct format
+with open("sample.zip", "rb") as f:
+    analyzer.teach(f.read(), "zip")
 
 # Batch process directory
 batch_result = analyze_directory("./data", recursive=True)
@@ -120,8 +132,8 @@ print(f"Analyzed {batch_result.analyzed_count} files")
 # Export to JSON/SARIF
 export_to_file(result, "report.json", format="json")
 
-# Analyze container
-container = analyze_archive("archive.zip")
+# Analyze container (DOCX, ZIP, etc.)
+container = analyze_archive("document.docx")
 for entry in container.entries:
     print(f"{entry.path}: {entry.format}")
 
@@ -132,39 +144,70 @@ repaired_data, report = repair.repair_file("corrupt.png")
 
 ### CLI
 ```bash
+# Analysis with limited evidence (default: top 3)
+filo analyze suspicious.bin
+
+# Show all detection evidence
+filo analyze --all-evidence suspicious.bin
+
+# Disable ML for pure signature detection
+filo analyze --no-ml file.bin
+
 # Analysis with JSON output
 filo analyze --json suspicious.bin
 
 # Batch processing with export
 filo batch ./directory --export=sarif --output=scan.sarif
 
-# Performance profiling
-filo profile --show-stats large_dataset.bin
+# Teach ML about file formats
+filo teach correct_file.zip --format zip
+filo teach image.png --format png
 
 # Export to JSON for scripting
 filo analyze --json file.bin | jq '.primary_format'
+```
+
+## Key Improvements
+
+### ZIP-Based Format Detection
+Filo now accurately distinguishes between ZIP-based formats by inspecting container contents:
+- **Office Open XML**: DOCX, PPTX, XLSX (via `[Content_Types].xml`)
+- **OpenDocument**: ODT, ODP, ODS (via `mimetype` file)
+- **Archives**: JAR, APK, EPUB, plain ZIP
+- **Large files**: Efficient handling of files >10MB using file path access
+
+### Enhanced ML Features
+Three major improvements to machine learning detection:
+1. **Discriminative Pattern Extraction**: Automatically discovers format-specific byte sequences
+2. **Rich Feature Analysis**: 8 statistical features including compression ratio, entropy, byte distribution
+3. **N-gram Profiling**: Fuzzy matching using top 100 byte trigrams for similarity detection
+
+### Cleaner Output
+Evidence display now shows only the top 3 most relevant items by default:
+```bash
+# Concise output (default)
+filo analyze file.zip
+
+# Full evidence when needed
+filo analyze --all-evidence file.zip
 ```
 
 ## Documentation
 
 - [Quick Start Guide](QUICKSTART.md) - Get started in 5 minutes
 - [Architecture](ARCHITECTURE.md) - Detailed system design
-- [Advanced Repair](docs/ADVANCED_REPAIR.md) - Repair engine documentation
-- [New Features (v0.2.0)](docs/NEW_FEATURES.md) - Latest features guide
 - [Examples](examples/README.md) - Code examples and demos
 
-## What's New in v0.2.0
+## What's New
 
-✨ **5 Major Features Added:**
-1. **Batch Processing** - Parallel directory analysis (91% coverage)
-2. **Export Reports** - JSON/SARIF output (99% coverage)
-3. **Container Detection** - ZIP/TAR recursive analysis (78% coverage)
-4. **Performance Profiling** - Bottleneck identification (97% coverage)
-5. **Enhanced CLI** - Color-coded output, hex dumps, suggestions
+✨ **Latest Enhancements:**
+1. **ZIP Container Analysis** - Accurate DOCX/XLSX/PPTX/ODT/ODP/ODS detection
+2. **Enhanced ML Learning** - Pattern extraction, rich features, n-gram profiling
+3. **Cleaner CLI Output** - Top 3 evidence items by default, --all-evidence flag
+4. **Corrupted File Detection** - Flexible signature matching with fallback patterns
+5. **Large File Support** - Efficient >10MB ZIP file handling
 
-📊 **Test Coverage**: 67% overall (95 tests passing)
-
-See [docs/NEW_FEATURES.md](docs/NEW_FEATURES.md) for complete details.
+📊 **Test Coverage**: 67% overall (10/10 analyzer tests passing)
 
 ## Contributing
 
@@ -174,13 +217,17 @@ We welcome contributions! Priority areas:
 - Test corpus samples
 - Performance optimizations
 
+## Security & Safety
+
+Filo is designed with security in mind:
+- Non-destructive analysis (unless explicitly requested with repair commands)
+- Resource-limited processing
+- Input-validated at all layers
+- No external network calls (fully offline ML)
 
 ## Author
 
 Supun Hewagamage ([@supunhg](https://github.com/supunhg))
-- Non-destructive (unless explicitly requested)
-- Resource-limited
-- Input-validated
 
 ---
 

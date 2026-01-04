@@ -136,6 +136,167 @@ class StructuralAnalyzer:
         return results
 
 
+class ZipBasedFormatAnalyzer:
+    """Analyzer for ZIP-based formats like DOCX, XLSX, PPTX, ODT, ODP, ODS, etc."""
+    
+    def __init__(self, database: FormatDatabase) -> None:
+        self.database = database
+    
+    def analyze(self, data: bytes, file_path: Optional[Union[str, Path]] = None) -> list[DetectionResult]:
+        """
+        Analyze ZIP-based formats by inspecting container contents.
+        
+        Args:
+            data: File data (may be partial for large files)
+            file_path: Optional path to file (used for large ZIPs to read central directory)
+        """
+        results: list[DetectionResult] = []
+        
+        # Check if it's a ZIP file
+        if not data.startswith(b"PK\x03\x04"):
+            return results
+        
+        try:
+            import zipfile
+            import io
+            
+            # For large files, try to use file path directly
+            if file_path and Path(file_path).stat().st_size > 10 * 1024 * 1024:
+                try:
+                    zf = zipfile.ZipFile(file_path, 'r')
+                    namelist = zf.namelist()
+                except Exception as ex:
+                    # Fall back to data buffer if file access fails
+                    zip_buffer = io.BytesIO(data)
+                    zf = zipfile.ZipFile(zip_buffer, 'r')
+                    namelist = zf.namelist()
+            else:
+                zip_buffer = io.BytesIO(data)
+                zf = zipfile.ZipFile(zip_buffer, 'r')
+                namelist = zf.namelist()
+            namelist_lower = [name.lower() for name in namelist]
+            
+            # Check for Office Open XML formats (DOCX, PPTX, XLSX)
+            # Support both standard and non-standard structures (with subdirectories)
+            has_content_types = any('[content_types].xml' in name.lower() for name in namelist)
+            
+            if has_content_types:
+                # DOCX: Contains word/document.xml (anywhere in structure)
+                if any('word/document.xml' in name.lower() for name in namelist):
+                    word_doc = next((n for n in namelist if 'word/document.xml' in n.lower()), None)
+                    results.append(DetectionResult(
+                        format="docx",
+                        confidence=0.95,
+                        evidence=[f"Contains {word_doc}", "Contains [Content_Types].xml"],
+                        weight=2.0
+                    ))
+                
+                # PPTX: Contains ppt/presentation.xml
+                elif any('ppt/presentation.xml' in name.lower() for name in namelist):
+                    ppt_file = next((n for n in namelist if 'ppt/presentation.xml' in n.lower()), None)
+                    results.append(DetectionResult(
+                        format="pptx",
+                        confidence=0.95,
+                        evidence=[f"Contains {ppt_file}", "Contains [Content_Types].xml"],
+                        weight=2.0
+                    ))
+                
+                # XLSX: Contains xl/workbook.xml
+                elif any('xl/workbook.xml' in name.lower() for name in namelist):
+                    xl_file = next((n for n in namelist if 'xl/workbook.xml' in n.lower()), None)
+                    results.append(DetectionResult(
+                        format="xlsx",
+                        confidence=0.95,
+                        evidence=[f"Contains {xl_file}", "Contains [Content_Types].xml"],
+                        weight=2.0
+                    ))
+            
+            # Check for OpenDocument formats (ODT, ODP, ODS)
+            if 'mimetype' in namelist:
+                try:
+                    mimetype_content = zf.read('mimetype').decode('utf-8', errors='ignore').strip()
+                    
+                    # ODT: OpenDocument Text
+                    if 'application/vnd.oasis.opendocument.text' in mimetype_content:
+                        results.append(DetectionResult(
+                            format="odt",
+                            confidence=0.98,
+                            evidence=[f"Mimetype: {mimetype_content}"],
+                            weight=2.0
+                        ))
+                    
+                    # ODP: OpenDocument Presentation
+                    elif 'application/vnd.oasis.opendocument.presentation' in mimetype_content:
+                        results.append(DetectionResult(
+                            format="odp",
+                            confidence=0.98,
+                            evidence=[f"Mimetype: {mimetype_content}"],
+                            weight=2.0
+                        ))
+                    
+                    # ODS: OpenDocument Spreadsheet
+                    elif 'application/vnd.oasis.opendocument.spreadsheet' in mimetype_content:
+                        results.append(DetectionResult(
+                            format="ods",
+                            confidence=0.98,
+                            evidence=[f"Mimetype: {mimetype_content}"],
+                            weight=2.0
+                        ))
+                except Exception:
+                    pass
+            
+            # Check for EPUB (electronic publication)
+            if 'META-INF/container.xml' in namelist and 'mimetype' in namelist:
+                try:
+                    mimetype_content = zf.read('mimetype').decode('utf-8', errors='ignore').strip()
+                    if 'application/epub+zip' in mimetype_content:
+                        results.append(DetectionResult(
+                            format="epub",
+                            confidence=0.98,
+                            evidence=[f"Mimetype: {mimetype_content}", "Contains META-INF/container.xml"],
+                            weight=2.0
+                        ))
+                except Exception:
+                    pass
+            
+            # Check for JAR (Java Archive)
+            if 'META-INF/MANIFEST.MF' in namelist:
+                results.append(DetectionResult(
+                    format="jar",
+                    confidence=0.90,
+                    evidence=["Contains META-INF/MANIFEST.MF"],
+                    weight=1.8
+                ))
+            
+            # Check for APK (Android Package)
+            if 'AndroidManifest.xml' in namelist and 'classes.dex' in namelist:
+                results.append(DetectionResult(
+                    format="apk",
+                    confidence=0.95,
+                    evidence=["Contains AndroidManifest.xml", "Contains classes.dex"],
+                    weight=2.0
+                ))
+            
+            # Close ZIP file
+            zf.close()
+            
+            # If no specific ZIP-based format was detected, it's a plain ZIP archive
+            if not results:
+                results.append(DetectionResult(
+                    format="zip",
+                    confidence=0.95,
+                    evidence=[f"Standard ZIP archive with {len(namelist)} files"],
+                    weight=2.5
+                ))
+        
+        except Exception as e:
+            import traceback
+            logger.debug(f"ZIP analysis failed: {e}")
+            logger.debug(traceback.format_exc())
+        
+        return results
+
+
 class StatisticalAnalyzer:
     @staticmethod
     def calculate_entropy(data: bytes, sample_size: int = 2048) -> float:
@@ -169,6 +330,7 @@ class Analyzer:
         self.database = database or FormatDatabase()
         self.signature_analyzer = SignatureAnalyzer(self.database)
         self.structural_analyzer = StructuralAnalyzer(self.database)
+        self.zip_analyzer = ZipBasedFormatAnalyzer(self.database)
         self.statistical_analyzer = StatisticalAnalyzer()
         
         self.ml_detector: Optional['MLDetector'] = None
@@ -181,35 +343,44 @@ class Analyzer:
         
         logger.info(f"Analyzer initialized with {self.database.count()} formats")
     
-    def analyze(self, data: bytes) -> AnalysisResult:
+    def analyze(self, data: bytes, file_path: Optional[Union[str, Path]] = None) -> AnalysisResult:
         checksum = hashlib.sha256(data).hexdigest()[:16]
         
         sig_results = self.signature_analyzer.analyze(data)
         
+        # Early return for high-confidence matches, BUT NOT for ZIP-based formats
+        # (they need container analysis to distinguish between DOCX/XLSX/ODP/etc)
+        zip_based_formats = {'zip', 'docx', 'pptx', 'xlsx', 'odt', 'odp', 'ods', 'epub', 'jar', 'apk'}
+        
         if sig_results and sig_results[0].confidence > 0.95:
-            entropy = self.statistical_analyzer.calculate_entropy(data[:2048])
-            
-            return AnalysisResult(
-                primary_format=sig_results[0].format,
-                confidence=sig_results[0].confidence,
-                alternative_formats=[(r.format, r.confidence) for r in sig_results[1:3]],
-                evidence_chain=[{
-                    "module": "signature_analysis",
-                    "format": sig_results[0].format,
-                    "confidence": sig_results[0].confidence,
-                    "evidence": sig_results[0].evidence,
-                    "weight": 1.0,
-                }],
-                file_size=len(data),
-                entropy=entropy,
-                checksum_sha256=checksum,
-            )
+            # Skip early return if this is a ZIP-based format (needs container inspection)
+            if sig_results[0].format not in zip_based_formats:
+                entropy = self.statistical_analyzer.calculate_entropy(data[:2048])
+                
+                return AnalysisResult(
+                    primary_format=sig_results[0].format,
+                    confidence=sig_results[0].confidence,
+                    alternative_formats=[(r.format, r.confidence) for r in sig_results[1:3]],
+                    evidence_chain=[{
+                        "module": "signature_analysis",
+                        "format": sig_results[0].format,
+                        "confidence": sig_results[0].confidence,
+                        "evidence": sig_results[0].evidence,
+                        "weight": 1.0,
+                    }],
+                    file_size=len(data),
+                    entropy=entropy,
+                    checksum_sha256=checksum,
+                )
         
         struct_results = []
         if sig_results:
             struct_results = self.structural_analyzer.analyze(
                 data, suspected_format=sig_results[0].format
             )
+        
+        # Check for ZIP-based formats (DOCX, XLSX, PPTX, ODT, ODP, ODS, etc.)
+        zip_results = self.zip_analyzer.analyze(data, file_path=file_path)
         
         entropy = self.statistical_analyzer.calculate_entropy(data[:2048])
         
@@ -238,6 +409,19 @@ class Analyzer:
             )
             evidence_chain.append({
                 "module": "structural_analysis",
+                "format": result.format,
+                "confidence": result.confidence,
+                "evidence": result.evidence,
+                "weight": result.weight,
+            })
+        
+        # ZIP-based format detection has highest weight for accurate container detection
+        for result in zip_results:
+            format_scores[result.format] = format_scores.get(result.format, 0.0) + (
+                result.confidence * result.weight * 0.8
+            )
+            evidence_chain.append({
+                "module": "zip_container_analysis",
                 "format": result.format,
                 "confidence": result.confidence,
                 "evidence": result.evidence,
@@ -287,6 +471,8 @@ class Analyzer:
         file_hash = hashlib.sha256(data).hexdigest()
         
         patterns = []
+        
+        # First, try to extract known signatures for this format
         spec = self.database.get_format(correct_format)
         if spec:
             for sig in spec.signatures:
@@ -300,6 +486,18 @@ class Analyzer:
                             weight=sig.weight
                         ))
         
+        # Also extract discriminative patterns automatically from the file
+        auto_patterns = self.ml_detector.extract_discriminative_patterns(data, max_patterns=15)
+        for pattern in auto_patterns:
+            pattern.format = correct_format
+            patterns.append(pattern)
+        
+        # Extract rich statistical features
+        features = self.ml_detector.extract_features(data)
+        
+        # Build n-gram profile
+        ngram_profile = self.ml_detector.build_ngram_profile(data, n=3)
+        
         incorrect_formats = []
         if incorrect_guess:
             incorrect_formats.append(incorrect_guess)
@@ -310,16 +508,20 @@ class Analyzer:
             correct_format=correct_format,
             file_size=len(data),
             entropy=entropy,
-            incorrect_formats=incorrect_formats
+            incorrect_formats=incorrect_formats,
+            features=features,
+            ngram_profile=ngram_profile
         )
         
         self.ml_detector.learn(example)
-        logger.info(f"Learned from example: {correct_format}")
+        logger.info(f"Learned from example: {correct_format} ({len(patterns)} patterns, {len(features)} features, {len(ngram_profile)} n-grams)")
+
     
     def analyze_file(self, file_path: Union[str, Path]) -> AnalysisResult:
         path = Path(file_path)
         file_size = path.stat().st_size
         
+        # Read file data (limited for large files to save memory)
         if file_size > 10 * 1024 * 1024:
             with open(path, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mmapped:
@@ -328,4 +530,5 @@ class Analyzer:
             with open(path, "rb") as f:
                 data = f.read()
         
-        return self.analyze(data)
+        # Pass file path so ZIP analyzer can open the full file if needed
+        return self.analyze(data, file_path=path)

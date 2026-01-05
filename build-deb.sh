@@ -3,7 +3,7 @@
 
 set -e
 
-VERSION="0.2.0"
+VERSION="0.2.3"
 PKG_NAME="filo-forensics_${VERSION}_all"
 BUILD_DIR="build/${PKG_NAME}"
 

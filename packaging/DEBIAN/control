@@ -1,5 +1,5 @@
 Package: filo-forensics
-Version: 0.2.0
+Version: 0.2.3
 Section: utils
 Priority: optional
 Architecture: all
@@ -13,6 +13,9 @@ Description: Forensic Intelligence & Ligation Orchestrator
  Features:
   - Deep file analysis with signature and structural detection
   - Smart ZIP-based format detection (DOCX, XLSX, ODT, etc.)
+  - Hash lineage tracking for chain-of-custody (v0.2.3)
+  - Contradiction detection for malware triage (v0.2.3)
+  - Confidence breakdown with --explain flag (v0.2.3)
   - Enhanced ML learning with pattern extraction
   - Intelligent file repair engine
   - Batch processing and export capabilities

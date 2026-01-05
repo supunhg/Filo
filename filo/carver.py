@@ -7,6 +7,7 @@ import mmap
 from .formats import FormatDatabase
 from .analyzer import Analyzer
 from .models import AnalysisResult
+from .lineage import LineageTracker, OperationType
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,10 @@ class CarvedFile:
 
 
 class CarverEngine:
-    def __init__(self, format_db: Optional[FormatDatabase] = None):
+    def __init__(self, format_db: Optional[FormatDatabase] = None, lineage_tracker: Optional[LineageTracker] = None):
         self.format_db = format_db or FormatDatabase()
         self.analyzer = Analyzer(database=self.format_db, use_ml=False)
+        self.lineage_tracker = lineage_tracker
         
         self.signatures = self._build_signature_index()
     
@@ -102,6 +104,18 @@ class CarverEngine:
                                 "evidence": result.evidence_chain
                             }
                         )
+                        
+                        # Record lineage if tracker available
+                        if self.lineage_tracker:
+                            self.lineage_tracker.record(
+                                original_data=data,
+                                result_data=carved_data,
+                                operation=OperationType.CARVE,
+                                offset=idx,
+                                size=file_size,
+                                format=result.primary_format,
+                                confidence=result.confidence
+                            )
                         
                         carved_files.append(carved)
                         logger.info(f"Carved {result.primary_format} at offset {idx}, size {file_size}")

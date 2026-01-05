@@ -93,11 +93,32 @@ class FormatSpec(BaseModel):
     references: list[str] = Field(default_factory=list, description="Specification URLs")
 
 
+class ConfidenceContribution(BaseModel):
+    """Individual contribution to confidence score"""
+    source: str = Field(description="Source of contribution (e.g., 'signature', 'structure', 'container', 'ml')")
+    value: float = Field(description="Contribution value (can be positive or negative)")
+    description: str = Field(description="Human-readable description of what contributed")
+    is_penalty: bool = Field(default=False, description="Whether this is a penalty (negative contribution)")
+
+
+class Contradiction(BaseModel):
+    """Detected format contradiction or structural anomaly"""
+    severity: str = Field(description="Severity level: 'warning', 'error', 'critical'")
+    claimed_format: str = Field(description="Format the file claims to be")
+    issue: str = Field(description="What's wrong or contradictory")
+    details: str = Field(description="Technical details about the contradiction")
+    category: str = Field(description="Type: 'compression', 'structure', 'embedded', 'missing'")
+
+
 class DetectionResult(BaseModel):
     """Result of format detection"""
     format: str
     confidence: float = Field(ge=0.0, le=1.0)
     evidence: list[str] = Field(default_factory=list, description="Supporting evidence")
+    contributions: list[ConfidenceContribution] = Field(
+        default_factory=list, 
+        description="Detailed breakdown of confidence contributions"
+    )
     weight: float = Field(default=1.0, description="Module weight")
 
 
@@ -110,6 +131,9 @@ class AnalysisResult(BaseModel):
     )
     evidence_chain: list[dict[str, Any]] = Field(
         default_factory=list, description="Decision tree evidence"
+    )
+    contradictions: list[Contradiction] = Field(
+        default_factory=list, description="Detected format contradictions and anomalies"
     )
     file_size: int
     entropy: Optional[float] = None

@@ -7,6 +7,7 @@ from typing import Optional, Union, List, Tuple
 
 from filo.formats import FormatDatabase
 from filo.models import FormatSpec
+from filo.lineage import LineageTracker, OperationType
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,16 @@ class RepairEngine:
     Implements multiple strategies for repairing corrupted files.
     """
     
-    def __init__(self, database: Optional[FormatDatabase] = None) -> None:
+    def __init__(self, database: Optional[FormatDatabase] = None, lineage_tracker: Optional[LineageTracker] = None) -> None:
         """
         Initialize repair engine.
         
         Args:
             database: Optional format database
+            lineage_tracker: Optional lineage tracker for chain-of-custody
         """
         self.database = database or FormatDatabase()
+        self.lineage_tracker = lineage_tracker
         self._register_advanced_strategies()
         logger.info(f"RepairEngine initialized with {self.database.count()} formats")
     
@@ -70,6 +73,7 @@ class RepairEngine:
         data: bytes,
         format_name: str,
         strategy: str = "auto",
+        original_path: Optional[str] = None,
     ) -> tuple[bytes, RepairReport]:
         """
         Repair corrupted file data.
@@ -78,6 +82,7 @@ class RepairEngine:
             data: Corrupted file data
             format_name: Target format for repair
             strategy: Repair strategy ('auto', 'advanced', or specific strategy name)
+            original_path: Path to original file (for lineage tracking)
         
         Returns:
             Tuple of (repaired_data, repair_report)
@@ -94,6 +99,17 @@ class RepairEngine:
                         repaired, report = repair_func(data)
                         if report.success:
                             logger.info(f"Advanced repair successful: {repair_func.__name__}")
+                            # Record lineage if tracker available
+                            if self.lineage_tracker and repaired != data:
+                                self.lineage_tracker.record(
+                                    original_data=data,
+                                    result_data=repaired,
+                                    operation=OperationType.REPAIR,
+                                    original_path=original_path,
+                                    format=format_name,
+                                    strategy=report.strategy_used,
+                                    changes=report.changes_made
+                                )
                             return repaired, report
                     except Exception as e:
                         logger.debug(f"Advanced strategy {repair_func.__name__} failed: {e}")
@@ -116,6 +132,17 @@ class RepairEngine:
                         data, spec, repair_strategy.name
                     )
                     if report.success:
+                        # Record lineage if tracker available
+                        if self.lineage_tracker and repaired != data:
+                            self.lineage_tracker.record(
+                                original_data=data,
+                                result_data=repaired,
+                                operation=OperationType.REPAIR,
+                                original_path=original_path,
+                                format=format_name,
+                                strategy=report.strategy_used,
+                                changes=report.changes_made
+                            )
                         return repaired, report
                 except Exception as e:
                     logger.warning(f"Strategy {repair_strategy.name} failed: {e}")

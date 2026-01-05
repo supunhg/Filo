@@ -2,6 +2,90 @@
 
 This roadmap outlines planned features and improvements for Filo. Items are organized by priority and development phase.
 
+## Version 0.2.3 (January 2026) - Forensic Transparency ✅ **COMPLETED**
+
+### Delivered Features
+
+#### 🔍 Confidence Breakdown
+**Status:** ✅ Completed  
+**Impact:** High - Court-ready transparency
+
+Auditable confidence scoring with `--explain` flag showing how each analyzer contributes:
+- Percentage breakdowns (+/- penalties)
+- Primary format with contribution details
+- Evidence transparency for expert testimony
+- ML similarity scores with context
+
+```bash
+filo analyze file.bin --explain
+# Primary: DOCX (82%)
+# + ZIP structure +25%
+# + [Content_Types].xml +30%
+# + ML similarity +18%
+# - Missing core props -9%
+```
+
+**Use Cases:**
+- Court evidence with auditable methodology
+- Expert witness testimony preparation
+- Confidence threshold tuning
+- ML model debugging
+
+---
+
+#### 🛡️ Contradiction Detection
+**Status:** ✅ Completed  
+**Impact:** High - Malware triage
+
+Detects files that cannot be what they claim to be:
+- Embedded executables (ELF, PE, Mach-O, scripts)
+- Invalid compression (PNG zlib, ZIP corruption)
+- Missing mandatory files (OOXML structure)
+- Format marker validation (PDF %%EOF, JPEG SOS)
+- Severity-based warnings (WARNING ⚠ / CRITICAL 🚨)
+
+```bash
+filo analyze suspicious.docx
+# 🚨 CRITICAL: Embedded ELF executable signature
+#    Found ELF executable in ZIP member 'word/media/exploit.dll'
+```
+
+**Use Cases:**
+- Malware detection in email attachments
+- Polyglot file identification
+- Document integrity validation
+- APT detection
+
+---
+
+#### 🔗 Hash Lineage Tracking
+**Status:** ✅ Completed  
+**Impact:** Critical - Chain-of-custody (non-negotiable)
+
+Cryptographic chain-of-custody for all file transformations:
+- SHA-256 hash tracking (original → result)
+- SQLite-backed lineage database (~/.filo/lineage.db)
+- Forward/backward lineage queries
+- Court-ready reports (text + JSON export)
+- Operation metadata (repair strategy, carve offset, etc.)
+
+```bash
+filo repair corrupt.png --format png --output fixed.png
+filo lineage $(sha256sum fixed.png | cut -d' ' -f1)
+# Complete chain-of-custody report with timestamps
+
+filo lineage-history --operation repair
+filo lineage-stats
+```
+
+**Use Cases:**
+- Legal evidence documentation
+- Forensic investigation auditing
+- Multi-step processing verification
+- Expert witness methodology proof
+
+---
+
 ## Version 0.3.0 (Q1 2026) - Core Enhancements
 
 ### 🎯 Priority Features

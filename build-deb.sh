@@ -1,9 +1,7 @@
 #!/bin/bash
-# Build .deb package for Filo
-
 set -e
 
-VERSION="0.2.0"
+VERSION="0.2.5"
 PKG_NAME="filo-forensics_${VERSION}_all"
 BUILD_DIR="build/${PKG_NAME}"
 

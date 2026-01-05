@@ -23,7 +23,22 @@ Showcases the 21 repair strategies with real examples.
 ### 3. File Carving (`carving_demo.py`)
 Extracts embedded files from disk images and concatenated data.
 
-### 4. New Features Demo (`features_demo.py`) ⭐
+### 4. Confidence Breakdown Demo (`confidence_breakdown_demo.py`) ⭐
+Demonstrates auditable confidence scoring with --explain flag:
+- Shows how each analyzer contributes to detection
+- Percentage breakdown (+/- penalties)
+- Court-ready transparency for digital forensics
+
+### 5. Contradiction Detection Demo (`contradiction_demo.py`) 🔒⭐
+Security-focused demonstrations for malware triage:
+- Embedded executable detection (ELF, PE, Mach-O)
+- OOXML structure validation
+- PNG compression validation
+- PDF/JPEG structure checks
+- Polyglot detection
+- JSON output for automation
+
+### 6. New Features Demo (`features_demo.py`)
 Comprehensive demonstration of v0.2.0 features:
 - Batch processing with parallel execution
 - JSON/SARIF export for CI/CD

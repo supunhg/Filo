@@ -35,7 +35,7 @@ class LearningExample:
 class MLDetector:
     def __init__(self, model_path: Optional[Path] = None) -> None:
         if model_path is None:
-            model_path = Path(__file__).parent.parent / "models" / "learned_patterns.pkl"
+            model_path = Path.home() / ".filo" / "learned_patterns.pkl"
         
         self.model_path = Path(model_path)
         self.model_path.parent.mkdir(parents=True, exist_ok=True)

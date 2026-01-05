@@ -5,7 +5,11 @@ from typing import Optional, Union
 import mmap
 
 from filo.formats import FormatDatabase
-from filo.models import AnalysisResult, DetectionResult
+from filo.models import AnalysisResult, DetectionResult, ConfidenceContribution, Fingerprint
+from filo.contradictions import ContradictionDetector
+from filo.embedded import EmbeddedDetector
+from filo.fingerprint import ToolFingerprinter
+from filo.polyglot import PolyglotDetector
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,7 @@ class SignatureAnalyzer:
         
         for format_spec in self.database._formats.values():
             evidence = []
+            contributions = []
             total_weight = 0.0
             matched_weight = 0.0
             
@@ -60,10 +65,16 @@ class SignatureAnalyzer:
                     search_end = min(sig.offset_max, len(scan_data) - len(sig_bytes) + 1)
                     for search_offset in range(sig.offset, search_end):
                         if scan_data[search_offset:search_offset + len(sig_bytes)] == sig_bytes:
+                            match_contribution = sig.weight * format_spec.confidence_weight
                             matched_weight += sig.weight
                             evidence.append(
                                 f"Signature match at offset {search_offset}: {sig.description}"
                             )
+                            contributions.append(ConfidenceContribution(
+                                source="signature",
+                                value=match_contribution,
+                                description=f"{sig.description} at offset {search_offset}"
+                            ))
                             found = True
                             break
                 else:
@@ -72,10 +83,16 @@ class SignatureAnalyzer:
                     
                     if end_offset <= len(scan_data):
                         if scan_data[sig.offset:end_offset] == sig_bytes:
+                            match_contribution = sig.weight * format_spec.confidence_weight
                             matched_weight += sig.weight
                             evidence.append(
                                 f"Signature match at offset {sig.offset}: {sig.description}"
                             )
+                            contributions.append(ConfidenceContribution(
+                                source="signature",
+                                value=match_contribution,
+                                description=f"{sig.description} at offset {sig.offset}"
+                            ))
             
             # Calculate confidence
             if total_weight > 0:
@@ -88,6 +105,7 @@ class SignatureAnalyzer:
                             confidence=confidence,
                             evidence=evidence,
                             weight=1.0,
+                            contributions=contributions,
                         )
                     )
         
@@ -106,22 +124,41 @@ class StructuralAnalyzer:
             spec = self.database.get_format(suspected_format)
             if spec and spec.structure:
                 evidence = []
+                contributions = []
                 confidence = 0.8  # Base confidence for structural match
                 
                 # Check header size
                 if spec.structure.header_size:
                     if len(data) >= spec.structure.header_size:
                         evidence.append(f"Valid header size: {spec.structure.header_size} bytes")
+                        contributions.append(ConfidenceContribution(
+                            source="structure",
+                            value=0.3,
+                            description=f"Valid header size ({spec.structure.header_size} bytes)"
+                        ))
                     else:
+                        penalty = 0.4
                         confidence *= 0.5
                         evidence.append("File too small for expected header")
+                        contributions.append(ConfidenceContribution(
+                            source="structure",
+                            value=-penalty,
+                            description="File too small for expected header",
+                            is_penalty=True
+                        ))
                 
                 # Check footer signatures
                 for footer in spec.footers:
                     footer_bytes = bytes.fromhex(footer.hex)
                     if data.endswith(footer_bytes):
-                        confidence = min(1.0, confidence + 0.15)
+                        footer_contribution = 0.15
+                        confidence = min(1.0, confidence + footer_contribution)
                         evidence.append(f"Footer match: {footer.description}")
+                        contributions.append(ConfidenceContribution(
+                            source="structure",
+                            value=footer_contribution,
+                            description=f"Footer: {footer.description}"
+                        ))
                 
                 if evidence:
                     results.append(
@@ -130,6 +167,7 @@ class StructuralAnalyzer:
                             confidence=confidence,
                             evidence=evidence,
                             weight=0.8,
+                            contributions=contributions,
                         )
                     )
         
@@ -184,31 +222,70 @@ class ZipBasedFormatAnalyzer:
                 # DOCX: Contains word/document.xml (anywhere in structure)
                 if any('word/document.xml' in name.lower() for name in namelist):
                     word_doc = next((n for n in namelist if 'word/document.xml' in n.lower()), None)
+                    contributions = [
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.50,
+                            description=f"Contains {word_doc}"
+                        ),
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.45,
+                            description="Contains [Content_Types].xml"
+                        )
+                    ]
                     results.append(DetectionResult(
                         format="docx",
                         confidence=0.95,
                         evidence=[f"Contains {word_doc}", "Contains [Content_Types].xml"],
-                        weight=2.0
+                        weight=2.0,
+                        contributions=contributions
                     ))
                 
                 # PPTX: Contains ppt/presentation.xml
                 elif any('ppt/presentation.xml' in name.lower() for name in namelist):
                     ppt_file = next((n for n in namelist if 'ppt/presentation.xml' in n.lower()), None)
+                    contributions = [
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.50,
+                            description=f"Contains {ppt_file}"
+                        ),
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.45,
+                            description="Contains [Content_Types].xml"
+                        )
+                    ]
                     results.append(DetectionResult(
                         format="pptx",
                         confidence=0.95,
                         evidence=[f"Contains {ppt_file}", "Contains [Content_Types].xml"],
-                        weight=2.0
+                        weight=2.0,
+                        contributions=contributions
                     ))
                 
                 # XLSX: Contains xl/workbook.xml
                 elif any('xl/workbook.xml' in name.lower() for name in namelist):
                     xl_file = next((n for n in namelist if 'xl/workbook.xml' in n.lower()), None)
+                    contributions = [
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.50,
+                            description=f"Contains {xl_file}"
+                        ),
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.45,
+                            description="Contains [Content_Types].xml"
+                        )
+                    ]
                     results.append(DetectionResult(
                         format="xlsx",
                         confidence=0.95,
                         evidence=[f"Contains {xl_file}", "Contains [Content_Types].xml"],
-                        weight=2.0
+                        weight=2.0,
+                        contributions=contributions
                     ))
             
             # Check for OpenDocument formats (ODT, ODP, ODS)
@@ -222,7 +299,14 @@ class ZipBasedFormatAnalyzer:
                             format="odt",
                             confidence=0.98,
                             evidence=[f"Mimetype: {mimetype_content}"],
-                            weight=2.0
+                            weight=2.0,
+                            contributions=[
+                                ConfidenceContribution(
+                                    source="container",
+                                    value=0.98,
+                                    description=f"Mimetype: {mimetype_content}"
+                                )
+                            ]
                         ))
                     
                     # ODP: OpenDocument Presentation
@@ -231,7 +315,14 @@ class ZipBasedFormatAnalyzer:
                             format="odp",
                             confidence=0.98,
                             evidence=[f"Mimetype: {mimetype_content}"],
-                            weight=2.0
+                            weight=2.0,
+                            contributions=[
+                                ConfidenceContribution(
+                                    source="container",
+                                    value=0.98,
+                                    description=f"Mimetype: {mimetype_content}"
+                                )
+                            ]
                         ))
                     
                     # ODS: OpenDocument Spreadsheet
@@ -240,7 +331,14 @@ class ZipBasedFormatAnalyzer:
                             format="ods",
                             confidence=0.98,
                             evidence=[f"Mimetype: {mimetype_content}"],
-                            weight=2.0
+                            weight=2.0,
+                            contributions=[
+                                ConfidenceContribution(
+                                    source="container",
+                                    value=0.98,
+                                    description=f"Mimetype: {mimetype_content}"
+                                )
+                            ]
                         ))
                 except Exception:
                     pass
@@ -254,7 +352,19 @@ class ZipBasedFormatAnalyzer:
                             format="epub",
                             confidence=0.98,
                             evidence=[f"Mimetype: {mimetype_content}", "Contains META-INF/container.xml"],
-                            weight=2.0
+                            weight=2.0,
+                            contributions=[
+                                ConfidenceContribution(
+                                    source="container",
+                                    value=0.60,
+                                    description=f"Mimetype: {mimetype_content}"
+                                ),
+                                ConfidenceContribution(
+                                    source="container",
+                                    value=0.38,
+                                    description="Contains META-INF/container.xml"
+                                )
+                            ]
                         ))
                 except Exception:
                     pass
@@ -265,7 +375,14 @@ class ZipBasedFormatAnalyzer:
                     format="jar",
                     confidence=0.90,
                     evidence=["Contains META-INF/MANIFEST.MF"],
-                    weight=1.8
+                    weight=2.0,
+                    contributions=[
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.90,
+                            description="Contains META-INF/MANIFEST.MF"
+                        )
+                    ]
                 ))
             
             # Check for APK (Android Package)
@@ -274,7 +391,19 @@ class ZipBasedFormatAnalyzer:
                     format="apk",
                     confidence=0.95,
                     evidence=["Contains AndroidManifest.xml", "Contains classes.dex"],
-                    weight=2.0
+                    weight=2.0,
+                    contributions=[
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.50,
+                            description="Contains AndroidManifest.xml"
+                        ),
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.45,
+                            description="Contains classes.dex"
+                        )
+                    ]
                 ))
             
             # Close ZIP file
@@ -286,7 +415,14 @@ class ZipBasedFormatAnalyzer:
                     format="zip",
                     confidence=0.95,
                     evidence=[f"Standard ZIP archive with {len(namelist)} files"],
-                    weight=2.5
+                    weight=2.5,
+                    contributions=[
+                        ConfidenceContribution(
+                            source="container",
+                            value=0.95,
+                            description=f"Standard ZIP archive with {len(namelist)} files"
+                        )
+                    ]
                 ))
         
         except Exception as e:
@@ -325,13 +461,19 @@ class Analyzer:
     def __init__(
         self, 
         database: Optional[FormatDatabase] = None,
-        use_ml: bool = True
+        use_ml: bool = True,
+        detect_embedded: bool = True,
+        fingerprint: bool = True,
+        detect_polyglots: bool = True
     ) -> None:
         self.database = database or FormatDatabase()
         self.signature_analyzer = SignatureAnalyzer(self.database)
         self.structural_analyzer = StructuralAnalyzer(self.database)
         self.zip_analyzer = ZipBasedFormatAnalyzer(self.database)
         self.statistical_analyzer = StatisticalAnalyzer()
+        self.embedded_detector = EmbeddedDetector(self.database) if detect_embedded else None
+        self.fingerprinter = ToolFingerprinter() if fingerprint else None
+        self.polyglot_detector = PolyglotDetector() if detect_polyglots else None
         
         self.ml_detector: Optional['MLDetector'] = None
         if use_ml and ML_AVAILABLE:
@@ -357,6 +499,13 @@ class Analyzer:
             if sig_results[0].format not in zip_based_formats:
                 entropy = self.statistical_analyzer.calculate_entropy(data[:2048])
                 
+                # Check for contradictions even in early return
+                contradictions = []
+                try:
+                    contradictions = ContradictionDetector.detect_all(data, sig_results[0].format)
+                except Exception as e:
+                    logger.debug(f"Contradiction detection failed: {e}")
+                
                 return AnalysisResult(
                     primary_format=sig_results[0].format,
                     confidence=sig_results[0].confidence,
@@ -368,6 +517,7 @@ class Analyzer:
                         "evidence": sig_results[0].evidence,
                         "weight": 1.0,
                     }],
+                    contradictions=contradictions,
                     file_size=len(data),
                     entropy=entropy,
                     checksum_sha256=checksum,
@@ -401,6 +551,7 @@ class Analyzer:
                 "confidence": result.confidence,
                 "evidence": result.evidence,
                 "weight": result.weight,
+                "contributions": [c.model_dump() for c in result.contributions] if result.contributions else [],
             })
         
         for result in struct_results:
@@ -413,6 +564,7 @@ class Analyzer:
                 "confidence": result.confidence,
                 "evidence": result.evidence,
                 "weight": result.weight,
+                "contributions": [c.model_dump() for c in result.contributions] if result.contributions else [],
             })
         
         # ZIP-based format detection has highest weight for accurate container detection
@@ -426,6 +578,7 @@ class Analyzer:
                 "confidence": result.confidence,
                 "evidence": result.evidence,
                 "weight": result.weight,
+                "contributions": [c.model_dump() for c in result.contributions] if result.contributions else [],
             })
         
         for fmt, ml_confidence in ml_results:
@@ -452,11 +605,74 @@ class Analyzer:
             confidence = 0.0
             alternatives = []
         
+        # Detect contradictions
+        contradictions = []
+        try:
+            # Gather context for contradiction checks
+            context = {}
+            if primary_format in ['docx', 'xlsx', 'pptx', 'zip', 'odt', 'odp', 'ods']:
+                # Get ZIP namelist if available
+                for evidence in evidence_chain:
+                    if evidence.get("module") == "zip_container_analysis":
+                        try:
+                            import zipfile
+                            import io
+                            with zipfile.ZipFile(io.BytesIO(data), 'r') as zf:
+                                context['namelist'] = zf.namelist()
+                        except Exception:
+                            pass
+                        break
+            
+            # Run contradiction detection
+            contradictions = ContradictionDetector.detect_all(data, primary_format, **context)
+        except Exception as e:
+            logger.debug(f"Contradiction detection failed: {e}")
+        
+        # Detect embedded objects
+        embedded_objects = []
+        if self.embedded_detector:
+            try:
+                embedded_objects = self.embedded_detector.detect_embedded(data, min_confidence=0.70)
+                
+                if primary_format in ['pe', 'elf', 'zip']:
+                    overlay = self.embedded_detector.detect_overlay(data, primary_format)
+                    if overlay:
+                        embedded_objects.append(overlay)
+                
+                if embedded_objects:
+                    logger.info(f"Detected {len(embedded_objects)} embedded object(s)")
+            except Exception as e:
+                logger.debug(f"Embedded detection failed: {e}")
+        
+        # Extract tool/creator fingerprints
+        fingerprints = []
+        if self.fingerprinter:
+            try:
+                fingerprints = self.fingerprinter.fingerprint_file(data, primary_format)
+                if fingerprints:
+                    logger.info(f"Extracted {len(fingerprints)} fingerprint(s)")
+            except Exception as e:
+                logger.debug(f"Fingerprinting failed: {e}")
+        
+        # Detect polyglot files
+        polyglots = []
+        if self.polyglot_detector:
+            try:
+                polyglots = self.polyglot_detector.detect_polyglots(data, primary_format)
+                if polyglots:
+                    logger.info(f"Detected {len(polyglots)} polyglot combination(s)")
+            except Exception as e:
+                logger.debug(f"Polyglot detection failed: {e}")
+        
         return AnalysisResult(
             primary_format=primary_format,
             confidence=confidence,
             alternative_formats=alternatives,
             evidence_chain=evidence_chain,
+            contradictions=contradictions,
+            embedded_objects=embedded_objects,
+            fingerprints=fingerprints,
+            polyglots=polyglots,
             file_size=len(data),
             entropy=entropy,
             checksum_sha256=checksum,

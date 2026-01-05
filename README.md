@@ -10,11 +10,18 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - 🎯 **Smart Format Detection**: Distinguishes DOCX/XLSX/PPTX, ODT/ODP/ODS, ZIP, JAR, APK, EPUB
 - 🧠 **Enhanced ML Learning**: Discriminative pattern extraction, rich statistical features, n-gram profiling
 - 🔧 **Intelligent Repair**: Reconstruct corrupted headers automatically with 21 repair strategies
-- 📊 **Flexible Output**: Concise evidence display (top 3 by default), full details with --all-evidence
+- 📊 **Flexible Output**: Concise evidence display (top 3 by default), full details with -a/--all-evidence
+- 😎 **Confidence Breakdown**: Auditable detection with --explain flag (court-ready transparency)
+- 🛡️ **Contradiction Detection**: Identifies malware, polyglots, structural anomalies (malware triage)
+- 🕵️ **Embedded Detection**: Find files hidden inside files - ZIP in EXE, PNG after EOF (malware hunter candy)
+- 🔧 **Tool Fingerprinting**: Identify how/when/with what tools a file was created (forensic attribution)
+- ⚠️ **Polyglot Detection** *(NEW v0.2.5)*: Detect dual-format files (GIFAR, PNG+ZIP, PDF+JS) with risk assessment
 - 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
+- 🔗 **Hash Lineage Tracking**: Cryptographic chain-of-custody for court evidence
 - 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
 - ⚡ **Performance Profiling**: Identify bottlenecks in large-scale analysis
 - 🎨 **Enhanced CLI**: Color-coded output, hex dumps, repair suggestions
+- 🧹 **Easy Maintenance**: Reset ML model and lineage database with simple commands
 
 ## Quick Start
 
@@ -26,7 +33,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.0_all.deb
+sudo dpkg -i filo-forensics_0.2.5_all.deb
 ```
 
 **Option 2: From Source**
@@ -41,20 +48,27 @@ pip install -e .
 # Analyze unknown file
 filo analyze suspicious.bin
 
-# Show all detection evidence
-filo analyze --all-evidence file.bin
+# Show detailed confidence breakdown (forensic-grade)
+filo analyze --explain file.bin
+
+# Show all detection evidence and embedded artifacts
+filo analyze -a -e file.bin
 
 # Analyze with JSON output
 filo analyze --json file.bin > report.json
 
 # Teach ML about a file format
-filo teach correct_file.zip --format zip
+filo teach correct_file.zip -f zip
 
 # Batch process directory
 filo batch ./directory
 
 # Repair corrupted file
 filo repair --format=png broken_image.bin
+
+# Reset ML model or lineage database
+filo reset-ml -y
+filo reset-lineage -y
 ```
 
 ## Installation
@@ -72,7 +86,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.0_all.deb
+sudo dpkg -i filo-forensics_0.2.3_all.deb
 
 # Start using immediately
 filo --version
@@ -87,6 +101,10 @@ filo analyze file.bin
 - ✅ Clean uninstall: `sudo dpkg -r filo-forensics`
 
 **Supported:** Ubuntu 20.04+, Debian 11+, and compatible distributions
+
+**Note:** All user data is stored in `/home/user/.filo/` directory:
+- ML model: `/home/user/.filo/learned_patterns.pkl`
+- Lineage database: `/home/user/.filo/lineage.db`
 
 ### From Source (Development)
 
@@ -153,8 +171,14 @@ repaired_data, report = repair.repair_file("corrupt.png")
 # Analysis with limited evidence (default: top 3)
 filo analyze suspicious.bin
 
-# Show all detection evidence
-filo analyze --all-evidence suspicious.bin
+# Show all evidence and embedded artifacts
+filo analyze -a -e suspicious.bin
+
+# Show detailed confidence breakdown (auditable, court-ready)
+filo analyze --explain file.bin
+
+# Combine for full transparency
+filo analyze --explain -a -e file.bin
 
 # Disable ML for pure signature detection
 filo analyze --no-ml file.bin
@@ -162,15 +186,45 @@ filo analyze --no-ml file.bin
 # Analysis with JSON output
 filo analyze --json suspicious.bin
 
+# Detect embedded files (ZIP in EXE, PNG after EOF)
+filo analyze malware.exe -e
+
+# Identify tool/creator fingerprints
+filo analyze document.pdf  # Automatically fingerprints
+
 # Batch processing with export
 filo batch ./directory --export=sarif --output=scan.sarif
 
 # Teach ML about file formats
-filo teach correct_file.zip --format zip
-filo teach image.png --format png
+filo teach correct_file.zip -f zip
+filo teach image.png -f png
+
+# Reset ML model or lineage database
+filo reset-ml -y
+filo reset-lineage -y
 
 # Export to JSON for scripting
 filo analyze --json file.bin | jq '.primary_format'
+
+# Security: Detect embedded malware in documents
+filo analyze suspicious.docx  # Automatically checks for contradictions
+
+# Automation: Filter files with critical contradictions
+filo analyze *.docx --json | \
+  jq 'select(.contradictions[]? | .severity == "critical")'
+
+# Check for hidden files
+filo analyze *.png --json | \
+  jq 'select(.embedded_objects | length > 0)'
+
+# Chain-of-custody: Query file transformation lineage
+filo lineage $(sha256sum repaired.png | cut -d' ' -f1)
+
+# View lineage history
+filo lineage-history --operation repair
+
+# Export lineage for court
+filo lineage $FILE_HASH --format json --output chain-of-custody.json
 ```
 
 ## Key Improvements
@@ -201,19 +255,70 @@ filo analyze --all-evidence file.zip
 ## Documentation
 
 - [Quick Start Guide](QUICKSTART.md) - Get started in 5 minutes
+- [Embedded Detection](docs/EMBEDDED_DETECTION.md) - Find files hidden inside files
+- [Tool Fingerprinting](docs/TOOL_FINGERPRINTING.md) - Forensic attribution (who/when/how)
+- [Confidence Breakdown](docs/CONFIDENCE_BREAKDOWN.md) - Auditable detection explanations
+- [Hash Lineage](docs/HASH_LINEAGE.md) - Chain-of-custody tracking
+- [Polyglot Detection](docs/POLYGLOT_DETECTION.md) - Dual-format file detection *(NEW)*
 - [Architecture](ARCHITECTURE.md) - Detailed system design
 - [Examples](examples/README.md) - Code examples and demos
 
-## What's New
+## What's New in v0.2.5
 
-✨ **Latest Enhancements:**
-1. **ZIP Container Analysis** - Accurate DOCX/XLSX/PPTX/ODT/ODP/ODS detection
-2. **Enhanced ML Learning** - Pattern extraction, rich features, n-gram profiling
-3. **Cleaner CLI Output** - Top 3 evidence items by default, --all-evidence flag
-4. **Corrupted File Detection** - Flexible signature matching with fallback patterns
-5. **Large File Support** - Efficient >10MB ZIP file handling
+⚠️ **Major New Feature: Polyglot & Dual-Format Detection**
 
-📊 **Test Coverage**: 67% overall (10/10 analyzer tests passing)
+Filo can now detect files that are simultaneously valid in multiple formats:
+
+```bash
+filo analyze suspicious_image.gif
+
+# Output:
+# ⚠ Polyglot Detected:
+#   • GIF + JAR - GIF + JAR hybrid (GIFAR attack) (91%)
+#     Risk: HIGH | Pattern: gifar
+```
+
+**Supported Polyglot Patterns:**
+- **GIFAR** (GIF+JAR) - HIGH RISK: Classic attack vector for bypassing image filters
+- **PDF + JavaScript** - HIGH RISK: Malicious PDFs with embedded JS payloads
+- **PE + ZIP** - HIGH RISK: Windows executables that are also ZIP archives
+- **PNG + ZIP** - MEDIUM RISK: Images with hidden ZIP archives
+- **JPEG + ZIP** - MEDIUM RISK: JPEG files with embedded archives
+
+**Key Features:**
+- ✅ Multi-format validation (PNG, GIF, JPEG, ZIP, JAR, RAR, PDF, PE, ELF)
+- ✅ Security risk assessment (HIGH, MEDIUM, LOW)
+- ✅ Confidence scoring (70-98%)
+- ✅ JavaScript payload detection in PDFs
+- ✅ Demo polyglot files for testing
+- ✅ Comprehensive test suite (26 new tests)
+
+**Documentation:** See [docs/POLYGLOT_DETECTION.md](docs/POLYGLOT_DETECTION.md) for complete guide
+
+📊 **Test Coverage**: 67% overall (173/173 tests passing, +26 polyglot tests)
+🎯 **Supported Formats**: 60+ file formats  
+🔬 **Detection Accuracy**: 95%+ on clean files, 70%+ on corrupted files
+
+## Previous Releases
+
+<details>
+<summary><strong>v0.2.4 - Embedded Detection & Tool Fingerprinting</strong></summary>
+
+✨ **Enhancements:**
+1. **Embedded Object Detection** - Find files hidden inside files (ZIP in EXE, PNG after EOF, polyglots)
+2. **Tool Fingerprinting** - Identify creation tools, versions, OS, timestamps (forensic attribution)
+3. **Short Flags** - `-a` for all evidence, `-e` for all embedded artifacts
+4. **Reset Commands** - `filo reset-ml` and `filo reset-lineage` for easy maintenance
+5. **Demo Files** - Sophisticated test files in `demo/` directory
+6. **Hash Lineage Tracking** - Cryptographic chain-of-custody for all transformations
+7. **Format Contradiction Detection** - Identifies malware, polyglots, embedded executables
+8. **Confidence Decomposition** - Auditable detection with --explain flag
+9. **ZIP Container Analysis** - Accurate DOCX/XLSX/PPTX/ODT/ODP/ODS detection
+10. **Enhanced ML Learning** - Pattern extraction, rich features, n-gram profiling
+
+📊 147/147 tests passing
+
+</details>
 
 ## Contributing
 

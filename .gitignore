@@ -52,3 +52,4 @@ models/learned_patterns.pkl
 # Packaging
 *.deb
 build/
+temp/

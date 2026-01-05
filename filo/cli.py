@@ -21,6 +21,8 @@ from filo.batch import BatchProcessor, BatchConfig
 from filo.export import JSONExporter, SARIFExporter, export_to_file
 from filo.container import ContainerDetector
 from filo.profiler import Profiler
+from filo.lineage import LineageTracker, OperationType
+from filo.ml import MLDetector
 
 console = Console()
 
@@ -70,8 +72,10 @@ def main(verbose: bool) -> None:
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--deep", is_flag=True, help="Deep analysis (slower, more thorough)")
 @click.option("--no-ml", is_flag=True, help="Disable ML-based detection")
-@click.option("--all-evidence", is_flag=True, help="Show all detection evidence")
-def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evidence: bool) -> None:
+@click.option("-a", "--all-evidence", is_flag=True, help="Show all detection evidence")
+@click.option("-e", "--all-embedded", is_flag=True, help="Show all embedded artifacts")
+@click.option("--explain", is_flag=True, help="Show detailed confidence breakdown")
+def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evidence: bool, all_embedded: bool, explain: bool) -> None:
     """
     Analyze a file to detect its format.
     
@@ -91,6 +95,27 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
                     {"format": fmt, "confidence": conf}
                     for fmt, conf in result.alternative_formats
                 ],
+                "contradictions": [
+                    {
+                        "severity": c.severity,
+                        "claimed_format": c.claimed_format,
+                        "issue": c.issue,
+                        "details": c.details,
+                        "category": c.category
+                    }
+                    for c in result.contradictions
+                ],
+                "embedded_objects": [
+                    {
+                        "offset": obj.offset,
+                        "format": obj.format,
+                        "confidence": obj.confidence,
+                        "size": obj.size,
+                        "description": obj.description,
+                        "data_snippet": obj.data_snippet.hex() if obj.data_snippet else ""
+                    }
+                    for obj in result.embedded_objects
+                ],
                 "file_size": result.file_size,
                 "entropy": result.entropy,
                 "checksum": result.checksum_sha256,
@@ -109,11 +134,179 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
             console.print(f"\n[bold]Detected Format:[/bold] [{confidence_color}]{result.primary_format}[/{confidence_color}]")
             console.print(f"[bold]Confidence:[/bold] [{confidence_color}]{result.confidence:.1%}[/{confidence_color}]")
             
+            # Confidence breakdown (if --explain flag is used)
+            if explain:
+                console.print("\n[bold cyan]Confidence Breakdown:[/bold cyan]")
+                
+                # Group contributions by source type
+                from collections import defaultdict
+                grouped_contributions = defaultdict(list)
+                
+                # Collect contributions from evidence chain for the primary format
+                for evidence in result.evidence_chain:
+                    fmt = evidence.get("format", "")
+                    if fmt == result.primary_format:
+                        module = evidence.get("module", "unknown")
+                        module_weight = evidence.get("weight", 1.0)
+                        
+                        # Map module names to display names
+                        source_map = {
+                            "signature_analysis": "Signature",
+                            "structural_analysis": "Structure",
+                            "zip_container_analysis": "ZIP Container",
+                            "ml_prediction": "ML Similarity"
+                        }
+                        source_name = source_map.get(module, module)
+                        
+                        # Get contributions if they exist
+                        contributions = evidence.get("contributions", [])
+                        if contributions:
+                            for contrib in contributions:
+                                # Calculate weighted contribution based on module weight
+                                if module == "signature_analysis":
+                                    weighted_value = contrib["value"] * module_weight * 0.6
+                                elif module == "structural_analysis":
+                                    weighted_value = contrib["value"] * module_weight * 0.4
+                                elif module == "zip_container_analysis":
+                                    weighted_value = contrib["value"] * module_weight * 0.8
+                                else:
+                                    weighted_value = contrib["value"]
+                                
+                                grouped_contributions[source_name].append({
+                                    "value": weighted_value,
+                                    "description": contrib["description"],
+                                    "is_penalty": contrib.get("is_penalty", False)
+                                })
+                        else:
+                            # Fallback: use module confidence * weight
+                            conf = evidence.get("confidence", 0)
+                            if module == "signature_analysis":
+                                weighted_value = conf * module_weight * 0.6
+                            elif module == "structural_analysis":
+                                weighted_value = conf * module_weight * 0.4
+                            elif module == "zip_container_analysis":
+                                weighted_value = conf * module_weight * 0.8
+                            elif module == "ml_prediction":
+                                weighted_value = conf * 0.2
+                            else:
+                                weighted_value = conf
+                            
+                            grouped_contributions[source_name].append({
+                                "value": weighted_value,
+                                "description": f"{source_name} match",
+                                "is_penalty": False
+                            })
+                
+                # Display contributions
+                console.print(f"\nPrimary: [bold]{result.primary_format.upper()}[/bold] ([cyan]{result.confidence:.1%}[/cyan])")
+                
+                total_contrib = 0.0
+                for source_name in ["Signature", "Structure", "ZIP Container", "ML Similarity"]:
+                    if source_name in grouped_contributions:
+                        for contrib in grouped_contributions[source_name]:
+                            value = contrib["value"]
+                            desc = contrib["description"]
+                            is_penalty = contrib["is_penalty"]
+                            
+                            total_contrib += value
+                            
+                            if is_penalty:
+                                console.print(f"  [red]-{abs(value):>5.1%}[/red]  {desc}")
+                            else:
+                                console.print(f"  [green]+{value:>5.1%}[/green]  {desc}")
+            
             # Alternatives
             if result.alternative_formats:
                 console.print("\n[bold]Alternative Possibilities:[/bold]")
                 for fmt, conf in result.alternative_formats[:3]:
                     console.print(f"  • {fmt}: {conf:.1%}")
+            
+            # Contradictions (always show if present - security critical)
+            if result.contradictions:
+                console.print("\n[bold yellow]⚠ Structural Contradictions Detected:[/bold yellow]")
+                for contradiction in result.contradictions:
+                    severity_colors = {
+                        "warning": "yellow",
+                        "error": "orange3",
+                        "critical": "red"
+                    }
+                    severity_icons = {
+                        "warning": "⚠",
+                        "error": "⚠",
+                        "critical": "🚨"
+                    }
+                    
+                    color = severity_colors.get(contradiction.severity, "yellow")
+                    icon = severity_icons.get(contradiction.severity, "⚠")
+                    
+                    console.print(f"\n  [{color}]{icon} {contradiction.severity.upper()}: {contradiction.issue}[/{color}]")
+                    console.print(f"     [dim]Claims: {contradiction.claimed_format}[/dim]")
+                    console.print(f"     [dim]{contradiction.details}[/dim]")
+                    console.print(f"     [dim]Category: {contradiction.category}[/dim]")
+            
+            # Embedded objects (malware hunter candy)
+            if result.embedded_objects:
+                console.print("\n[bold magenta]🔍 Embedded Artifacts:[/bold magenta]")
+                
+                # Limit display unless --all-embedded flag is used
+                objects_to_show = result.embedded_objects if all_embedded else result.embedded_objects[:3]
+                
+                for obj in objects_to_show:
+                    conf_color = "green" if obj.confidence > 0.85 else "yellow" if obj.confidence > 0.70 else "red"
+                    
+                    # Format size display
+                    size_str = f"{obj.size:,} bytes" if obj.size else "unknown size"
+                    
+                    console.print(f"  • Offset [cyan]0x{obj.offset:X}[/cyan]: [{conf_color}]{obj.format.upper()}[/{conf_color}] (prob. {obj.confidence:.0%})")
+                    console.print(f"    [dim]{size_str} - {obj.description}[/dim]")
+                    
+                    # Show hex snippet
+                    if obj.data_snippet:
+                        hex_snippet = " ".join(f"{b:02x}" for b in obj.data_snippet[:8])
+                        console.print(f"    [dim]Signature: {hex_snippet}...[/dim]")
+                
+                # Show message if embedded objects were truncated
+                if not all_embedded and len(result.embedded_objects) > 3:
+                    remaining = len(result.embedded_objects) - 3
+                    console.print(f"\n  [dim]... and {remaining} more embedded artifact{'s' if remaining != 1 else ''}[/dim]")
+                    console.print(f"  [dim]Use -e or --all-embedded flag to show all[/dim]")
+            
+            # Tool/creator fingerprints
+            if result.fingerprints:
+                console.print("\n[bold blue]🔧 Tool Fingerprints:[/bold blue]")
+                
+                for fp in result.fingerprints:
+                    conf_color = "green" if fp.confidence > 0.85 else "yellow" if fp.confidence > 0.70 else "red"
+                    
+                    parts = []
+                    if fp.tool:
+                        parts.append(f"{fp.tool}")
+                    if fp.version:
+                        parts.append(f"v{fp.version}")
+                    if fp.os_hint:
+                        parts.append(f"on {fp.os_hint}")
+                    if fp.timestamp:
+                        parts.append(f"at {fp.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+                    
+                    main_text = " ".join(parts) if parts else fp.category
+                    
+                    console.print(f"  • [{conf_color}]{main_text}[/{conf_color}] (prob. {fp.confidence:.0%})")
+                    console.print(f"    [dim]{fp.evidence}[/dim]")
+            
+            # Polyglot detections
+            if result.polyglots:
+                console.print("\n[bold red]⚠ Polyglot Detected:[/bold red]")
+                
+                for poly in result.polyglots:
+                    risk_colors = {"high": "red", "medium": "yellow", "low": "green"}
+                    risk_color = risk_colors.get(poly.risk_level, "white")
+                    conf_color = "green" if poly.confidence > 0.85 else "yellow" if poly.confidence > 0.70 else "red"
+                    
+                    formats_str = " + ".join(f.upper() for f in poly.formats)
+                    
+                    console.print(f"  • [{conf_color}]{formats_str}[/{conf_color}] - {poly.description} (prob. {poly.confidence:.0%})")
+                    console.print(f"    [dim]Risk: [{risk_color}]{poly.risk_level.upper()}[/{risk_color}] | Pattern: {poly.pattern}[/dim]")
+                    console.print(f"    [dim]{poly.evidence}[/dim]")
             
             # File info
             console.print(f"\n[bold]File Size:[/bold] {result.file_size:,} bytes")
@@ -166,9 +359,9 @@ def teach(file_path: str, format_name: str) -> None:
         analyzer.teach(data, format_name)
         
         console.print(f"[green]✓ Learned from {file_path} as {format_name}[/green]")
-        from pathlib import Path
-        model_path = Path(__file__).parent.parent / "models" / "learned_patterns.pkl"
-        console.print(f"[dim]Model saved to {model_path}[/dim]")
+        model_path = analyzer.ml_detector.model_path if analyzer.ml_detector else None
+        if model_path:
+            console.print(f"[dim]Model saved to {model_path}[/dim]")
     
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}", style="bold")
@@ -540,6 +733,257 @@ def profile(file_path: str, profile: bool, show_stats: bool) -> None:
         
     except Exception as e:
         console.print(f"[red]Error during profiling: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("file_hash")
+@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text", help="Output format")
+@click.option("--output", "-o", type=click.Path(), help="Save to file")
+def lineage(file_hash: str, output_format: str, output: Optional[str]) -> None:
+    """
+    Show hash lineage chain-of-custody for a file.
+    
+    FILE_HASH: SHA-256 hash to query (first 8+ characters accepted)
+    
+    Examples:
+        filo lineage abc123def456  # Show lineage for hash
+        filo lineage abc123 --format json  # JSON output
+        filo lineage abc123 --output report.txt  # Save to file
+    """
+    try:
+        tracker = LineageTracker()
+        
+        # Support partial hash matching (minimum 8 chars)
+        if len(file_hash) < 8:
+            console.print("[red]Error: Hash must be at least 8 characters[/red]")
+            sys.exit(1)
+        
+        # For partial hashes, we'd need to query the database
+        # For now, require full hash (this can be enhanced)
+        if len(file_hash) != 64:
+            console.print("[yellow]Warning: Partial hash provided, results may be limited[/yellow]")
+            console.print("[yellow]For best results, provide full 64-character SHA-256 hash[/yellow]\n")
+        
+        if output_format == "json":
+            result = tracker.export_chain_json(file_hash)
+            
+            if output:
+                Path(output).write_text(result)
+                console.print(f"[green]✓ Lineage exported to {output}[/green]")
+            else:
+                console.print(result)
+        else:
+            result = tracker.export_chain_report(file_hash)
+            
+            if output:
+                Path(output).write_text(result)
+                console.print(f"[green]✓ Chain-of-custody report saved to {output}[/green]")
+            else:
+                console.print(result)
+        
+    except Exception as e:
+        console.print(f"[red]Error querying lineage: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--operation", type=click.Choice(["repair", "carve", "extract", "export", "teach", "analyze"]), help="Filter by operation type")
+@click.option("--limit", type=int, default=20, help="Maximum records to show")
+def lineage_history(operation: Optional[str], limit: int) -> None:
+    """
+    Show recent lineage tracking history.
+    
+    Examples:
+        filo lineage-history  # Show all recent operations
+        filo lineage-history --operation repair  # Show only repairs
+        filo lineage-history --limit 50  # Show 50 most recent
+    """
+    try:
+        tracker = LineageTracker()
+        
+        if operation:
+            op_type = OperationType(operation)
+            records = tracker.get_by_operation(op_type)[:limit]
+            title = f"Lineage History - {operation.upper()} operations"
+        else:
+            # Get stats to show overview
+            stats = tracker.get_stats()
+            
+            console.print("\n[bold]Lineage Tracking Statistics[/bold]")
+            console.print(f"Total Records: {stats['total_records']}")
+            console.print(f"Database: {stats['database_path']}\n")
+            
+            if stats['total_records'] == 0:
+                console.print("[yellow]No lineage records found[/yellow]")
+                console.print("[dim]Lineage tracking records chain-of-custody for file transformations[/dim]")
+                console.print("[dim]Use 'filo repair' or 'filo carve' with lineage tracking enabled[/dim]")
+                return
+            
+            console.print("[bold]Records by Operation:[/bold]")
+            for op, count in stats['by_operation'].items():
+                if count > 0:
+                    console.print(f"  {op}: {count}")
+            
+            console.print(f"\nOldest: {stats['oldest_record']}")
+            console.print(f"Newest: {stats['newest_record']}\n")
+            
+            # Show recent records from all operations
+            all_records = []
+            for op in OperationType:
+                all_records.extend(tracker.get_by_operation(op))
+            
+            # Sort by timestamp and take most recent
+            all_records.sort(key=lambda r: r.timestamp, reverse=True)
+            records = all_records[:limit]
+            title = f"Recent Lineage Records (last {len(records)})"
+        
+        if not records:
+            console.print(f"[yellow]No {operation} operations found[/yellow]" if operation else "[yellow]No records found[/yellow]")
+            return
+        
+        console.print(f"\n[bold]{title}[/bold]\n")
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Timestamp", width=20)
+        table.add_column("Operation", width=10)
+        table.add_column("Original Hash", width=16)
+        table.add_column("Result Hash", width=16)
+        table.add_column("Details", width=40)
+        
+        for record in records:
+            # Truncate hashes for display
+            orig_hash = record.original_hash[:14] + "..."
+            result_hash = record.result_hash[:14] + "..."
+            
+            # Format metadata
+            details = []
+            if 'format' in record.metadata:
+                details.append(f"fmt={record.metadata['format']}")
+            if 'strategy' in record.metadata:
+                details.append(f"strategy={record.metadata['strategy']}")
+            if 'offset' in record.metadata:
+                details.append(f"offset={record.metadata['offset']}")
+            details_str = ", ".join(details) if details else "-"
+            
+            table.add_row(
+                record.timestamp[:19].replace('T', ' '),
+                record.operation.value,
+                orig_hash,
+                result_hash,
+                details_str
+            )
+        
+        console.print(table)
+        console.print(f"\n[dim]Use 'filo lineage <hash>' to see full chain-of-custody[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+def lineage_stats() -> None:
+    """Show lineage tracking statistics."""
+    try:
+        tracker = LineageTracker()
+        stats = tracker.get_stats()
+        
+        console.print("\n[bold cyan]═══════════════════════════════════════════[/bold cyan]")
+        console.print("[bold cyan]  Lineage Tracking Statistics              [/bold cyan]")
+        console.print("[bold cyan]═══════════════════════════════════════════[/bold cyan]\n")
+        
+        console.print(f"[bold]Total Records:[/bold] {stats['total_records']}")
+        console.print(f"[bold]Database Path:[/bold] {stats['database_path']}\n")
+        
+        if stats['total_records'] > 0:
+            console.print("[bold]Operations:[/bold]")
+            table = Table(show_header=False, box=None)
+            for op, count in sorted(stats['by_operation'].items(), key=lambda x: x[1], reverse=True):
+                if count > 0:
+                    table.add_row(f"  • {op.upper()}", f"{count} records")
+            console.print(table)
+            
+            console.print(f"\n[bold]Time Range:[/bold]")
+            console.print(f"  Oldest: {stats['oldest_record']}")
+            console.print(f"  Newest: {stats['newest_record']}\n")
+        else:
+            console.print("[yellow]No lineage records found[/yellow]\n")
+            console.print("[dim]Lineage tracking maintains chain-of-custody for:[/dim]")
+            console.print("[dim]  • File repairs (original → repaired)[/dim]")
+            console.print("[dim]  • File carving (container → extracted)[/dim]")
+            console.print("[dim]  • File exports (source → exported format)[/dim]\n")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
+def reset_lineage(yes: bool) -> None:
+    """Reset lineage tracking database (deletes all records)."""
+    try:
+        tracker = LineageTracker()
+        db_path = tracker.db_path
+        stats = tracker.get_stats()
+        
+        if stats['total_records'] == 0:
+            console.print("[yellow]Lineage database is already empty[/yellow]")
+            return
+        
+        if not yes:
+            console.print(f"[yellow]Warning:[/yellow] This will delete {stats['total_records']} lineage records")
+            console.print(f"[dim]Database: {db_path}[/dim]\n")
+            
+            if not click.confirm("Are you sure you want to reset the lineage database?"):
+                console.print("[dim]Cancelled[/dim]")
+                return
+        
+        tracker.close()
+        db_path.unlink(missing_ok=True)
+        
+        console.print(f"[green]✓ Lineage database reset[/green]")
+        console.print(f"[dim]Deleted {stats['total_records']} records from {db_path}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
+def reset_ml(yes: bool) -> None:
+    """Reset ML model (deletes all learned patterns)."""
+    try:
+        model_path = Path.home() / ".filo" / "learned_patterns.pkl"
+        
+        if not model_path.exists():
+            console.print("[yellow]ML model does not exist (nothing to reset)[/yellow]")
+            return
+        
+        detector = MLDetector(model_path)
+        pattern_count = len(detector.pattern_weights) + len(detector.negative_patterns)
+        
+        if pattern_count == 0:
+            console.print("[yellow]ML model is already empty[/yellow]")
+            return
+        
+        if not yes:
+            console.print(f"[yellow]Warning:[/yellow] This will delete {pattern_count} learned patterns")
+            console.print(f"[dim]Model: {model_path}[/dim]\n")
+            
+            if not click.confirm("Are you sure you want to reset the ML model?"):
+                console.print("[dim]Cancelled[/dim]")
+                return
+        
+        model_path.unlink()
+        
+        console.print(f"[green]✓ ML model reset[/green]")
+        console.print(f"[dim]Deleted {pattern_count} patterns from {model_path}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
 

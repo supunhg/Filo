@@ -11,7 +11,9 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - 🧠 **Enhanced ML Learning**: Discriminative pattern extraction, rich statistical features, n-gram profiling
 - 🔧 **Intelligent Repair**: Reconstruct corrupted headers automatically with 21 repair strategies
 - 📊 **Flexible Output**: Concise evidence display (top 3 by default), full details with --all-evidence
-- � **Confidence Breakdown**: Auditable detection with --explain flag (court-ready transparency)- 🛡️ **Contradiction Detection**: Identifies malware, polyglots, structural anomalies (malware triage)- �🚀 **Batch Processing**: Parallel directory analysis with configurable workers
+- 😎 **Confidence Breakdown**: Auditable detection with --explain flag (court-ready transparency)
+- 🛡️ **Contradiction Detection**: Identifies malware, polyglots, structural anomalies (malware triage)
+- 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
 - 🔗 **Hash Lineage Tracking**: Cryptographic chain-of-custody for court evidence (non-negotiable)
 - 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
 - ⚡ **Performance Profiling**: Identify bottlenecks in large-scale analysis

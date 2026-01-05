@@ -5,8 +5,11 @@ from typing import Optional, Union
 import mmap
 
 from filo.formats import FormatDatabase
-from filo.models import AnalysisResult, DetectionResult, ConfidenceContribution
+from filo.models import AnalysisResult, DetectionResult, ConfidenceContribution, Fingerprint
 from filo.contradictions import ContradictionDetector
+from filo.embedded import EmbeddedDetector
+from filo.fingerprint import ToolFingerprinter
+from filo.polyglot import PolyglotDetector
 
 logger = logging.getLogger(__name__)
 
@@ -458,13 +461,19 @@ class Analyzer:
     def __init__(
         self, 
         database: Optional[FormatDatabase] = None,
-        use_ml: bool = True
+        use_ml: bool = True,
+        detect_embedded: bool = True,
+        fingerprint: bool = True,
+        detect_polyglots: bool = True
     ) -> None:
         self.database = database or FormatDatabase()
         self.signature_analyzer = SignatureAnalyzer(self.database)
         self.structural_analyzer = StructuralAnalyzer(self.database)
         self.zip_analyzer = ZipBasedFormatAnalyzer(self.database)
         self.statistical_analyzer = StatisticalAnalyzer()
+        self.embedded_detector = EmbeddedDetector(self.database) if detect_embedded else None
+        self.fingerprinter = ToolFingerprinter() if fingerprint else None
+        self.polyglot_detector = PolyglotDetector() if detect_polyglots else None
         
         self.ml_detector: Optional['MLDetector'] = None
         if use_ml and ML_AVAILABLE:
@@ -619,12 +628,51 @@ class Analyzer:
         except Exception as e:
             logger.debug(f"Contradiction detection failed: {e}")
         
+        # Detect embedded objects
+        embedded_objects = []
+        if self.embedded_detector:
+            try:
+                embedded_objects = self.embedded_detector.detect_embedded(data, min_confidence=0.70)
+                
+                if primary_format in ['pe', 'elf', 'zip']:
+                    overlay = self.embedded_detector.detect_overlay(data, primary_format)
+                    if overlay:
+                        embedded_objects.append(overlay)
+                
+                if embedded_objects:
+                    logger.info(f"Detected {len(embedded_objects)} embedded object(s)")
+            except Exception as e:
+                logger.debug(f"Embedded detection failed: {e}")
+        
+        # Extract tool/creator fingerprints
+        fingerprints = []
+        if self.fingerprinter:
+            try:
+                fingerprints = self.fingerprinter.fingerprint_file(data, primary_format)
+                if fingerprints:
+                    logger.info(f"Extracted {len(fingerprints)} fingerprint(s)")
+            except Exception as e:
+                logger.debug(f"Fingerprinting failed: {e}")
+        
+        # Detect polyglot files
+        polyglots = []
+        if self.polyglot_detector:
+            try:
+                polyglots = self.polyglot_detector.detect_polyglots(data, primary_format)
+                if polyglots:
+                    logger.info(f"Detected {len(polyglots)} polyglot combination(s)")
+            except Exception as e:
+                logger.debug(f"Polyglot detection failed: {e}")
+        
         return AnalysisResult(
             primary_format=primary_format,
             confidence=confidence,
             alternative_formats=alternatives,
             evidence_chain=evidence_chain,
             contradictions=contradictions,
+            embedded_objects=embedded_objects,
+            fingerprints=fingerprints,
+            polyglots=polyglots,
             file_size=len(data),
             entropy=entropy,
             checksum_sha256=checksum,

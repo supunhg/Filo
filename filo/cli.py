@@ -22,6 +22,7 @@ from filo.export import JSONExporter, SARIFExporter, export_to_file
 from filo.container import ContainerDetector
 from filo.profiler import Profiler
 from filo.lineage import LineageTracker, OperationType
+from filo.ml import MLDetector
 
 console = Console()
 
@@ -71,9 +72,10 @@ def main(verbose: bool) -> None:
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--deep", is_flag=True, help="Deep analysis (slower, more thorough)")
 @click.option("--no-ml", is_flag=True, help="Disable ML-based detection")
-@click.option("--all-evidence", is_flag=True, help="Show all detection evidence")
+@click.option("-a", "--all-evidence", is_flag=True, help="Show all detection evidence")
+@click.option("-e", "--all-embedded", is_flag=True, help="Show all embedded artifacts")
 @click.option("--explain", is_flag=True, help="Show detailed confidence breakdown")
-def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evidence: bool, explain: bool) -> None:
+def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evidence: bool, all_embedded: bool, explain: bool) -> None:
     """
     Analyze a file to detect its format.
     
@@ -102,6 +104,17 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
                         "category": c.category
                     }
                     for c in result.contradictions
+                ],
+                "embedded_objects": [
+                    {
+                        "offset": obj.offset,
+                        "format": obj.format,
+                        "confidence": obj.confidence,
+                        "size": obj.size,
+                        "description": obj.description,
+                        "data_snippet": obj.data_snippet.hex() if obj.data_snippet else ""
+                    }
+                    for obj in result.embedded_objects
                 ],
                 "file_size": result.file_size,
                 "entropy": result.entropy,
@@ -231,6 +244,70 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
                     console.print(f"     [dim]{contradiction.details}[/dim]")
                     console.print(f"     [dim]Category: {contradiction.category}[/dim]")
             
+            # Embedded objects (malware hunter candy)
+            if result.embedded_objects:
+                console.print("\n[bold magenta]🔍 Embedded Artifacts:[/bold magenta]")
+                
+                # Limit display unless --all-embedded flag is used
+                objects_to_show = result.embedded_objects if all_embedded else result.embedded_objects[:3]
+                
+                for obj in objects_to_show:
+                    conf_color = "green" if obj.confidence > 0.85 else "yellow" if obj.confidence > 0.70 else "red"
+                    
+                    # Format size display
+                    size_str = f"{obj.size:,} bytes" if obj.size else "unknown size"
+                    
+                    console.print(f"  • Offset [cyan]0x{obj.offset:X}[/cyan]: [{conf_color}]{obj.format.upper()}[/{conf_color}] (prob. {obj.confidence:.0%})")
+                    console.print(f"    [dim]{size_str} - {obj.description}[/dim]")
+                    
+                    # Show hex snippet
+                    if obj.data_snippet:
+                        hex_snippet = " ".join(f"{b:02x}" for b in obj.data_snippet[:8])
+                        console.print(f"    [dim]Signature: {hex_snippet}...[/dim]")
+                
+                # Show message if embedded objects were truncated
+                if not all_embedded and len(result.embedded_objects) > 3:
+                    remaining = len(result.embedded_objects) - 3
+                    console.print(f"\n  [dim]... and {remaining} more embedded artifact{'s' if remaining != 1 else ''}[/dim]")
+                    console.print(f"  [dim]Use -e or --all-embedded flag to show all[/dim]")
+            
+            # Tool/creator fingerprints
+            if result.fingerprints:
+                console.print("\n[bold blue]🔧 Tool Fingerprints:[/bold blue]")
+                
+                for fp in result.fingerprints:
+                    conf_color = "green" if fp.confidence > 0.85 else "yellow" if fp.confidence > 0.70 else "red"
+                    
+                    parts = []
+                    if fp.tool:
+                        parts.append(f"{fp.tool}")
+                    if fp.version:
+                        parts.append(f"v{fp.version}")
+                    if fp.os_hint:
+                        parts.append(f"on {fp.os_hint}")
+                    if fp.timestamp:
+                        parts.append(f"at {fp.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+                    
+                    main_text = " ".join(parts) if parts else fp.category
+                    
+                    console.print(f"  • [{conf_color}]{main_text}[/{conf_color}] (prob. {fp.confidence:.0%})")
+                    console.print(f"    [dim]{fp.evidence}[/dim]")
+            
+            # Polyglot detections
+            if result.polyglots:
+                console.print("\n[bold red]⚠ Polyglot Detected:[/bold red]")
+                
+                for poly in result.polyglots:
+                    risk_colors = {"high": "red", "medium": "yellow", "low": "green"}
+                    risk_color = risk_colors.get(poly.risk_level, "white")
+                    conf_color = "green" if poly.confidence > 0.85 else "yellow" if poly.confidence > 0.70 else "red"
+                    
+                    formats_str = " + ".join(f.upper() for f in poly.formats)
+                    
+                    console.print(f"  • [{conf_color}]{formats_str}[/{conf_color}] - {poly.description} (prob. {poly.confidence:.0%})")
+                    console.print(f"    [dim]Risk: [{risk_color}]{poly.risk_level.upper()}[/{risk_color}] | Pattern: {poly.pattern}[/dim]")
+                    console.print(f"    [dim]{poly.evidence}[/dim]")
+            
             # File info
             console.print(f"\n[bold]File Size:[/bold] {result.file_size:,} bytes")
             if result.entropy is not None:
@@ -282,9 +359,9 @@ def teach(file_path: str, format_name: str) -> None:
         analyzer.teach(data, format_name)
         
         console.print(f"[green]✓ Learned from {file_path} as {format_name}[/green]")
-        from pathlib import Path
-        model_path = Path(__file__).parent.parent / "models" / "learned_patterns.pkl"
-        console.print(f"[dim]Model saved to {model_path}[/dim]")
+        model_path = analyzer.ml_detector.model_path if analyzer.ml_detector else None
+        if model_path:
+            console.print(f"[dim]Model saved to {model_path}[/dim]")
     
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}", style="bold")
@@ -836,6 +913,74 @@ def lineage_stats() -> None:
             console.print("[dim]  • File repairs (original → repaired)[/dim]")
             console.print("[dim]  • File carving (container → extracted)[/dim]")
             console.print("[dim]  • File exports (source → exported format)[/dim]\n")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
+def reset_lineage(yes: bool) -> None:
+    """Reset lineage tracking database (deletes all records)."""
+    try:
+        tracker = LineageTracker()
+        db_path = tracker.db_path
+        stats = tracker.get_stats()
+        
+        if stats['total_records'] == 0:
+            console.print("[yellow]Lineage database is already empty[/yellow]")
+            return
+        
+        if not yes:
+            console.print(f"[yellow]Warning:[/yellow] This will delete {stats['total_records']} lineage records")
+            console.print(f"[dim]Database: {db_path}[/dim]\n")
+            
+            if not click.confirm("Are you sure you want to reset the lineage database?"):
+                console.print("[dim]Cancelled[/dim]")
+                return
+        
+        tracker.close()
+        db_path.unlink(missing_ok=True)
+        
+        console.print(f"[green]✓ Lineage database reset[/green]")
+        console.print(f"[dim]Deleted {stats['total_records']} records from {db_path}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
+def reset_ml(yes: bool) -> None:
+    """Reset ML model (deletes all learned patterns)."""
+    try:
+        model_path = Path.home() / ".filo" / "learned_patterns.pkl"
+        
+        if not model_path.exists():
+            console.print("[yellow]ML model does not exist (nothing to reset)[/yellow]")
+            return
+        
+        detector = MLDetector(model_path)
+        pattern_count = len(detector.pattern_weights) + len(detector.negative_patterns)
+        
+        if pattern_count == 0:
+            console.print("[yellow]ML model is already empty[/yellow]")
+            return
+        
+        if not yes:
+            console.print(f"[yellow]Warning:[/yellow] This will delete {pattern_count} learned patterns")
+            console.print(f"[dim]Model: {model_path}[/dim]\n")
+            
+            if not click.confirm("Are you sure you want to reset the ML model?"):
+                console.print("[dim]Cancelled[/dim]")
+                return
+        
+        model_path.unlink()
+        
+        console.print(f"[green]✓ ML model reset[/green]")
+        console.print(f"[dim]Deleted {pattern_count} patterns from {model_path}[/dim]")
         
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

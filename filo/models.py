@@ -1,5 +1,37 @@
-from typing import Any, Optional
+from typing import Any, Optional, List
+from datetime import datetime
 from pydantic import BaseModel, Field
+
+
+class PolyglotMatch(BaseModel):
+    """File valid as multiple formats simultaneously"""
+    formats: List[str] = Field(description="List of valid formats")
+    pattern: str = Field(description="Polyglot pattern name (e.g., 'gifar', 'png_zip')")
+    confidence: float = Field(ge=0.0, le=1.0, description="Detection confidence")
+    description: str = Field(description="Human-readable description")
+    risk_level: str = Field(description="Security risk: 'low', 'medium', 'high'")
+    evidence: str = Field(description="Evidence for polyglot detection")
+
+
+class Fingerprint(BaseModel):
+    """Tool/creator attribution fingerprint"""
+    category: str = Field(description="Fingerprint category (e.g., 'zip_creator', 'pdf_producer')")
+    tool: Optional[str] = Field(default=None, description="Tool/application name")
+    version: Optional[str] = Field(default=None, description="Tool version")
+    os_hint: Optional[str] = Field(default=None, description="Operating system hint")
+    timestamp: Optional[datetime] = Field(default=None, description="Creation/modification timestamp")
+    confidence: float = Field(ge=0.0, le=1.0, description="Fingerprint confidence")
+    evidence: str = Field(description="Technical evidence for this fingerprint")
+
+
+class EmbeddedObject(BaseModel):
+    """File embedded within another file"""
+    offset: int = Field(description="Byte offset where embedded object starts")
+    format: str = Field(description="Detected format of embedded object")
+    confidence: float = Field(ge=0.0, le=1.0, description="Detection confidence")
+    size: Optional[int] = Field(default=None, description="Estimated size in bytes")
+    description: str = Field(default="", description="Human-readable description")
+    data_snippet: bytes = Field(default=b"", description="First 16 bytes for verification")
 
 
 class Signature(BaseModel):
@@ -134,6 +166,15 @@ class AnalysisResult(BaseModel):
     )
     contradictions: list[Contradiction] = Field(
         default_factory=list, description="Detected format contradictions and anomalies"
+    )
+    embedded_objects: list[EmbeddedObject] = Field(
+        default_factory=list, description="Files embedded within this file"
+    )
+    fingerprints: list[Fingerprint] = Field(
+        default_factory=list, description="Tool/creator attribution fingerprints"
+    )
+    polyglots: list[PolyglotMatch] = Field(
+        default_factory=list, description="Polyglot format detections (valid as multiple formats)"
     )
     file_size: int
     entropy: Optional[float] = None

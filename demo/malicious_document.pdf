@@ -1,0 +1,33 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /OpenAction 3 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /S /JavaScript /JS (
+  var payload = unescape("%75%6E%65%73%63%61%70%65");
+  eval(String.fromCharCode(97,108,101,114,116));
+) >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /AA << /O 5 0 R >> >>
+endobj
+5 0 obj
+<< /S /JavaScript /JS (app.alert('Payload executed');) >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000074 00000 n 
+0000000133 00000 n 
+0000000290 00000 n 
+0000000385 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+458
+%%EOF

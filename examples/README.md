@@ -46,7 +46,22 @@ Comprehensive demonstration of v0.2.0 features:
 - Performance profiling
 - Enhanced CLI output with color coding
 
-### 5. Benchmarking (`benchmark.py`)
+### 7. Steganography Detection (NEW v0.2.6)
+Demonstrates hidden data detection:
+- LSB/MSB extraction from PNG/BMP
+- PDF metadata analysis
+- Trailing data detection
+- Flag pattern recognition
+- Base64/zlib auto-decoding
+
+### 8. PCAP Network Analysis (NEW v0.2.6)
+Network forensics examples:
+- Protocol detection
+- String/base64 extraction
+- Flag hunting in packets
+- HTTP request parsing
+
+### 9. Benchmarking (`benchmark.py`)
 Performance testing across different file sizes and formats.
 
 ### 6. Format Testing (`test_new_formats.py`)

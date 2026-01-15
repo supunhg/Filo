@@ -10,6 +10,7 @@ extensions:
 description: "ZIP archive format"
 references:
   - "https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT"
+extraction: "unzip file.zip"
 
 signatures:
   - offset: 0

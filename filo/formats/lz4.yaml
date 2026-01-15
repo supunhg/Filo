@@ -19,3 +19,4 @@ structure:
 description: "LZ4 Compressed Archive"
 references:
   - "https://github.com/lz4/lz4"
+extraction: "unlz4 file.lz4  or  lz4 -d file.lz4"

@@ -8,6 +8,7 @@ extensions:
   - xz
 
 description: "XZ compressed file"
+extraction: "unxz file.xz  or  xz -d file.xz"
 
 signatures:
   - offset: 0

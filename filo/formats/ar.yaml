@@ -1,0 +1,55 @@
+format: ar
+version: "1.0"
+mime:
+  - application/x-archive
+  - application/x-ar
+category: archive
+confidence_weight: 0.98
+extensions:
+  - a
+  - ar
+  - deb
+
+description: "Unix ar archive format - static library and Debian package container"
+references:
+  - "https://en.wikipedia.org/wiki/Ar_(Unix)"
+  - "https://sourceware.org/binutils/docs/binutils/ar.html"
+extraction: "ar -x file.ar"
+
+signatures:
+  # Standard ar archive magic
+  - offset: 0
+    hex: "213C617263683E"
+    description: "ar archive magic (!<arch>)"
+    weight: 1.0
+    
+  # Debian ar variant (used in .deb packages)
+  - offset: 0
+    hex: "213C617263683E0A"
+    description: "ar archive with newline (!<arch>\\n)"
+    weight: 1.0
+
+structure:
+  header:
+    description: "ar archive global header"
+    fields:
+      - name: magic
+        offset: 0
+        size: 8
+        description: "Magic signature: !<arch>\\n (0x213C617263683E0A)"
+      - name: file_header_1
+        offset: 8
+        size: 60
+        description: "First file header (16 bytes name + metadata)"
+
+# ar file format structure:
+# - Global header: "!<arch>\n" (8 bytes)
+# - File entries:
+#   - File name (16 bytes, space-padded)
+#   - Modification timestamp (12 bytes)
+#   - Owner ID (6 bytes)
+#   - Group ID (6 bytes)
+#   - File mode (8 bytes, octal)
+#   - File size (10 bytes, decimal)
+#   - End marker (2 bytes: 0x60 0x0A)
+#   - File data (padded to even boundary)

@@ -10,6 +10,7 @@ extensions:
   - gzip
 
 description: "GNU Zip compressed file"
+extraction: "gunzip file.gz  or  gzip -d file.gz"
 
 signatures:
   - offset: 0

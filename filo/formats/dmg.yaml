@@ -23,3 +23,4 @@ structure:
 description: "Apple Disk Image"
 references:
   - "https://en.wikipedia.org/wiki/Apple_Disk_Image"
+extraction: "hdiutil attach file.dmg  (macOS)"

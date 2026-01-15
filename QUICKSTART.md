@@ -1,8 +1,8 @@
-# Filo Quick Start Guide (v0.2.0)
+# Filo Quick Start Guide (v0.2.6)
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-> ✨ **New in v0.2.0**: Batch processing, JSON/SARIF export, performance profiling, and offline ML learning. See sections 5-8 below.
+> ✨ **New in v0.2.6**: Steganography detection (LSB/MSB analysis, PDF metadata, trailing data) and PCAP network analysis. See sections 9-10 below.
 
 ## Installation
 
@@ -324,20 +324,114 @@ filo formats list --category=raster_image
 filo formats show png
 ```
 
+## 9. Steganography Detection (NEW v0.2.6)
+
+Detect hidden data in image files and documents:
+
+```bash
+# Analyze image for hidden data (LSB/MSB)
+filo stego image.png
+
+# Analyze PDF metadata
+filo stego document.pdf
+
+# Check JPEG for trailing data
+filo stego photo.jpg
+
+# Extract specific channel/method
+filo stego image.png --extract="b1,rgb,lsb,xy" -o hidden.txt
+```
+
+**Example Output:**
+```
+🔍 Steganography Analysis: flag.png
+
+✓ Potential Hidden Data Found (3 methods)
+
+Method: b1,rgb,lsb,xy
+  Confidence: 95% (FLAG PATTERN DETECTED)
+  Data: picoCTF{h1dd3n_1n_LSB_d4t4}
+  
+Method: b1,r,msb,xy
+  Confidence: 65%
+  Data: SGVsbG8gV29ybGQh (base64)
+  Decoded: Hello World!
+```
+
+**Supports:**
+- PNG/BMP LSB and MSB extraction
+- PDF metadata (Author, Title, Subject, Keywords)
+- Trailing data after JPEG EOI, PNG IEND, PDF EOF
+- Automatic CTF flag pattern detection
+- Base64 and zlib decompression
+
+## 10. PCAP Network Analysis (NEW v0.2.6)
+
+Quick triage for network capture files:
+
+```bash
+# Analyze PCAP file
+filo pcap capture.pcap
+filo pcap dump.pcapng
+```
+
+**Example Output:**
+```
+📊 Statistics
+  Packets: 1,234
+  Protocols: TCP (800), UDP (400), ICMP (34)
+
+🚩 FLAGS FOUND (2)
+  picoCTF{n3tw0rk_f0r3n51c5}
+  flag{hidden_in_packets}
+
+📝 Base64 Data (3 found)
+  cGljb0NURnsuLi59...
+  → picoCTF{b4s364_1n_p4ck3ts}
+
+🌐 HTTP Requests (5 found)
+  GET /flag.txt
+  POST /submit
+```
+
+**Features:**
+- Protocol detection (IPv4, IPv6, TCP, UDP, ICMP, ARP)
+- String extraction from packet payloads
+- Automatic base64 detection and decoding
+- CTF flag pattern search
+- HTTP request/response extraction
+- No Wireshark dependency for quick triage
+
 ## Current Capabilities
 
 ✅ **Detection**
-- 10 common formats (PNG, JPEG, GIF, PDF, ZIP, RAR, ELF, PE, MP3, MP4)
+- 60+ file formats (images, documents, archives, executables, network captures)
 - Signature-based analysis
 - Structural validation
 - Entropy calculation
 - Offline ML learning (improves with use)
+- Steganography detection (LSB/MSB, metadata, trailing data)
+- PCAP network analysis
 
 ✅ **Repair**
 - Header reconstruction
 - Multiple repair strategies per format
 - Automatic strategy selection
 - Safe backup creation
+
+✅ **Steganography**
+- LSB/MSB extraction (PNG, BMP)
+- PDF metadata extraction
+- Trailing data detection (JPEG, PNG, PDF, GIF)
+- Flag pattern recognition (picoCTF{}, flag{}, HTB{})
+- Base64/zlib auto-decoding
+
+✅ **Network Forensics**
+- PCAP/PCAPNG parsing
+- Protocol detection
+- String/base64 extraction
+- Flag hunting in packets
+- HTTP request extraction
 
 ✅ **ML Learning**
 - Learns from your corrections

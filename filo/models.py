@@ -123,6 +123,7 @@ class FormatSpec(BaseModel):
     # Metadata
     description: Optional[str] = Field(default=None, description="Format description")
     references: list[str] = Field(default_factory=list, description="Specification URLs")
+    extraction: Optional[str] = Field(default=None, description="Common extraction command(s)")
 
 
 class ConfidenceContribution(BaseModel):

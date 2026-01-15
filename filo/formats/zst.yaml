@@ -20,3 +20,4 @@ structure:
 description: "Zstandard Compressed Archive"
 references:
   - "https://facebook.github.io/zstd/"
+extraction: "unzstd file.zst  or  zstd -d file.zst"

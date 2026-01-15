@@ -1,0 +1,54 @@
+format: shar
+version: "1.0"
+mime:
+  - application/x-shar
+  - text/x-shellscript
+category: archive
+confidence_weight: 0.95
+extensions:
+  - shar
+  - sh
+
+description: "Shell Archive (shar) - Self-extracting shell script archive"
+references:
+  - "https://en.wikipedia.org/wiki/Shar"
+  - "https://www.gnu.org/software/sharutils/"
+extraction: "sh file.shar"
+
+signatures:
+  # Shell archive with sh shebang (no space after #!)
+  - offset: 0
+    hex: "23212F62696E2F7368"
+    description: "Shell archive shebang (#!/bin/sh)"
+    weight: 0.8
+    
+  # Shell archive with bash shebang (no space after #!)
+  - offset: 0
+    hex: "23212F62696E2F62617368"
+    description: "Shell archive shebang (#!/bin/bash)"
+    weight: 0.8
+    
+  # GNU sharutils marker (appears early in file)
+  - offset: 0
+    offset_max: 300
+    hex: "7368617275746C73"
+    description: "GNU sharutils marker"
+    weight: 0.6
+    
+  # Common shar identifier text
+  - offset: 0
+    offset_max: 200
+    hex: "54686973206973206120736865"
+    description: "Shar identifier text ('This is a she')"
+    weight: 0.5
+
+structure:
+  header:
+    description: "Shell script header with archive metadata"
+    fields:
+      - name: shebang
+        offset: 0
+        size: 10
+      - name: comments
+        offset: 10
+        size: 100

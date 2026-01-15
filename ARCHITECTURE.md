@@ -58,6 +58,10 @@ Filo is a **battle-tested file forensics platform** designed for security profes
 │  │Signature │ │Structural│ │Statistical│ │Semantic  │   │
 │  │Analysis  │ │Analysis  │ │Analysis   │ │Analysis  │   │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐               │
+│  │   Stego  │ │  PCAP    │ │ Polyglot │               │
+│  │Detection │ │Analysis  │ │Detection │               │
+│  └──────────┘ └──────────┘ └──────────┘               │
 └─────────────────────────────────────────────────────────┘
                              │
 ┌─────────────────────────────────────────────────────────┐

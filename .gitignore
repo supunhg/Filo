@@ -49,6 +49,11 @@ repaired/
 filo_evidence/
 models/learned_patterns.pkl
 
+# Build artifacts
+*.deb
+build/
+dist/
+
 # Packaging
 *.deb
 build/

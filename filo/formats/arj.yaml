@@ -19,3 +19,4 @@ structure:
 description: "ARJ Compressed Archive"
 references:
   - "https://en.wikipedia.org/wiki/ARJ"
+extraction: "arj x file.arj"

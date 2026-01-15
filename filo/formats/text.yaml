@@ -1,0 +1,55 @@
+format: text
+version: "1.0"
+mime:
+  - text/plain
+  - text/x-plain
+category: document
+confidence_weight: 0.60
+extensions:
+  - txt
+  - text
+  - log
+  - md
+  - readme
+
+description: "Plain text file - ASCII or UTF-8 encoded text"
+references:
+  - "https://en.wikipedia.org/wiki/Plain_text"
+
+# Text files don't have a specific signature, but we can detect them
+# by checking for common text patterns and printable ASCII content
+signatures:
+  # Common text file indicators (these are heuristic)
+  # Note: Text detection is typically done via content analysis
+  # rather than magic bytes, so this format has low confidence weight
+  
+  # Markdown files
+  - offset: 0
+    offset_max: 100
+    hex: "23"
+    description: "Markdown heading (#)"
+    weight: 0.3
+    
+  # README files often start with these
+  - offset: 0
+    offset_max: 50
+    hex: "524541444D45"
+    description: "README text"
+    weight: 0.4
+
+structure:
+  content:
+    description: "Text content analysis"
+    fields:
+      - name: encoding
+        description: "Character encoding (ASCII, UTF-8, etc.)"
+      - name: line_endings
+        description: "Line ending type (LF, CRLF, CR)"
+      - name: printable_ratio
+        description: "Ratio of printable to non-printable characters"
+
+# Text files are detected primarily through statistical analysis:
+# - High ratio of printable ASCII characters (0x20-0x7E)
+# - Presence of common whitespace (space, tab, newline)
+# - Absence of null bytes or excessive control characters
+# - Valid UTF-8 sequences if non-ASCII

@@ -19,3 +19,4 @@ structure:
 description: "Tape Archive"
 references:
   - "https://en.wikipedia.org/wiki/Tar_(computing)"
+extraction: "tar -xf file.tar"

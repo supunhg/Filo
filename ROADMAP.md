@@ -206,7 +206,38 @@ batch_workers: 4
 
 ---
 
-## Version 0.4.0 (Q2 2026) - Advanced Detection
+## Version 0.4.0 (Q2 2026) - Advanced Detection & Evasion Resistance
+
+### Evasion Resistance Mode 🔥 **HIGH PRIORITY**
+**Status:** Planned  
+**Complexity:** High  
+**Impact:** Critical - Adversarial file analysis
+
+Assume the file is actively trying to fool detection:
+- **Offset scanning** - Delayed headers beyond typical positions
+- **Bit-flipped magic recovery** - Detect intentionally corrupted signatures
+- **Sliding-window magic detection** - Scan entire file for hidden formats
+- **Adversarial ML resistance** - Pattern obfuscation detection
+- **Hostile mode flag** - Aggressive scanning with performance tradeoff
+
+```bash
+filo analyze --hostile suspicious.bin
+# Scans entire file, attempts magic recovery, validates all offsets
+```
+
+**Use Cases:**
+- APT malware analysis
+- Anti-forensics detection
+- Obfuscated payload discovery
+- Nation-state file artifacts
+
+**Techniques:**
+- Entropy-based segment identification
+- Format signature fuzzy matching
+- Multi-pass validation at non-standard offsets
+- Bit-flip permutation testing (limited scope)
+
+---
 
 ### Fragment Detection
 **Status:** Planned  
@@ -226,20 +257,66 @@ filo carve disk.img --enable-fragments --aggressive
 
 ---
 
-### Polyglot Detection
-**Status:** Planned  
+### Polyglot Detection ✅ **COMPLETED in v0.2.5**
+**Status:** ✅ Shipped  
 **Complexity:** High  
-**Impact:** Medium
+**Impact:** High
 
 Detect files valid in multiple formats:
-- Security research focus
-- PDF/JS combinations
-- JAR/ZIP/HTML exploits
-- CVE exploitation detection
+- 9 format validators (PNG, GIF, JPEG, ZIP, JAR, RAR, PDF, PE, ELF)
+- Security risk assessment (HIGH/MEDIUM/LOW)
+- JavaScript payload detection in PDFs
+- GIFAR, PNG+ZIP, PDF+JS, PE+ZIP detection
 
 ```bash
-filo analyze suspicious.pdf --polyglot-check
+filo analyze suspicious.gif
+# ⚠ Polyglot Detected:
+#   • GIF + JAR - GIFAR attack (91% confidence)
+#     Risk: HIGH
 ```
+
+---
+
+## Version 0.5.0 (Q3 2026) - ML Intelligence & Clustering
+
+### ML Similarity Clustering 🔥 **HIGH PRIORITY**
+**Status:** Planned  
+**Complexity:** High  
+**Impact:** High - Relationship discovery, not classification
+
+Move beyond simple classification to **relationship discovery**:
+- **Group unknown samples** by structural similarity
+- **Detect format families** and variants
+- **Identify obfuscation patterns** across samples
+- **Output clusters, not labels** - visual grouping of related files
+
+```bash
+filo cluster ./unknown_samples/ --output clusters.json
+# Returns:
+# Cluster 1: 15 files - Unknown PE variant (entropy: 7.2-7.4)
+# Cluster 2: 8 files - Obfuscated PDF family (similar structure)
+# Cluster 3: 23 files - ZIP-based custom format
+
+filo cluster-analyze cluster_1.json --similarity-graph
+```
+
+**Use Cases:**
+- Malware family identification
+- Zero-day variant detection
+- Custom format reverse engineering
+- APT campaign artifact correlation
+
+**Techniques:**
+- Structural feature extraction (n-grams, entropy profiles, chunk patterns)
+- Dimensionality reduction (t-SNE, UMAP)
+- Hierarchical clustering (DBSCAN, hierarchical)
+- Visual similarity graphs (exportable to Gephi/Neo4j)
+
+**Outputs:**
+- JSON cluster definitions with similarity scores
+- GraphML for visual analysis tools
+- Cluster statistics and centroids
+- Inter-cluster distance matrices
 
 ---
 
@@ -278,25 +355,126 @@ filo repair partial.zip --extract-readable --ignore-crc
 
 ## Version 0.5.0 (Q3 2026) - Ecosystem & Integration
 
-### Plugin System
-**Status:** Planned  
-**Complexity:** High  
-**Impact:** Medium
+---
 
-User-defined format extensions:
-- Python plugin API
-- Custom format definitions
-- Company-specific proprietary formats
-- Community contributions
+## TIER 4 - Platform Evolution (Q4 2026+) 🚀 **GAME CHANGERS**
+
+*These features fundamentally change what Filo is capable of and establish it as a platform, not just a tool.*
+
+---
+
+### Plugin ABI (Non-Negotiable Long-Term) 🔥 **CRITICAL**
+**Status:** Planned  
+**Complexity:** Very High  
+**Impact:** Critical - Makes Filo sticky
+
+**Define a stable plugin interface** that allows external contributors to extend Filo:
+
+**Core Contracts:**
+- **Analyzer Interface** - Standardized format detection API
+- **Evidence Contract** - How plugins contribute evidence and confidence
+- **Confidence Contribution Rules** - Weighted scoring for plugin findings
+- **Binary Compatibility** - ABI stability guarantees across versions
+
+**Enables:**
+- Proprietary format support (vendor-specific files)
+- Nation-state file artifacts (intelligence community formats)
+- Industry-specific formats (medical, legal, financial)
+- Community-driven format expansion
+- Commercial plugin ecosystem
 
 ```python
-# ~/.config/filo/plugins/custom_format.py
-from filo.plugin import FormatPlugin
+# Plugin ABI Example
+from filo.plugin import FormatAnalyzer, Evidence, AnalysisResult
 
-class MyFormat(FormatPlugin):
-    name = "custom"
-    signatures = [...]
+class CustomFormatAnalyzer(FormatAnalyzer):
+    """Stable plugin interface - guaranteed ABI compatibility"""
+    
+    API_VERSION = "1.0"
+    FORMAT_NAME = "proprietary_format"
+    
+    def analyze(self, data: bytes) -> AnalysisResult:
+        return AnalysisResult(
+            confidence=0.85,
+            evidence=[Evidence(type="signature", confidence=0.9)]
+        )
 ```
+
+```bash
+filo plugin install company-formats.whl
+filo analyze unknown.bin --enable-plugins
+```
+
+**This makes Filo sticky** - once organizations build plugins, they're locked in.
+
+---
+
+### Forensic Graph Model 🔥 **CRITICAL**
+**Status:** Planned  
+**Complexity:** Very High  
+**Impact:** Critical - Visual forensic reasoning
+
+**Represent all findings as a knowledge graph:**
+
+**Graph Components:**
+- **Nodes:** Files, containers, evidence, format signatures
+- **Edges:** "contains", "supports", "contradicts", "derives_from"
+- **Properties:** Confidence scores, timestamps, byte offsets
+
+**Exports:** GraphML, JSON-LD, Cypher, DOT (Graphviz)
+
+```bash
+filo analyze evidence.zip --export-graph evidence.graphml
+filo graph query --find contradictions
+filo graph visualize --layout force-directed --output report.svg
+```
+
+**Graph Query Example:**
+```cypher
+MATCH (file:File)-[:CONTAINS]->(exe:Executable)
+WHERE exe.confidence > 0.8
+RETURN file, exe
+```
+
+**Use Cases:**
+- Visual investigation and contradiction analysis
+- Malware family relationship mapping
+- Chain-of-custody visualization
+- Expert witness presentations
+
+---
+
+### Replayable Analysis 🔥 **CRITICAL**
+**Status:** Planned  
+**Complexity:** High  
+**Impact:** Critical - Audit gold standard
+
+**Every analysis run becomes fully reproducible:**
+
+**Captured State:**
+- Input hash (SHA-256)
+- Filo version + dependencies
+- Analyzer versions (format defs, ML models)
+- Configuration profile
+- Environment (Python, OS, arch)
+- Deterministic ordering
+
+```bash
+filo analyze evidence.bin --record-session analysis_001.json
+filo replay analysis_001.json --verify-hash
+filo diff analysis_001.json analysis_002.json
+filo replay analysis_001.json --export-audit-report evidence.pdf
+```
+
+**Verification:**
+```bash
+filo replay analysis.json --verify-hash
+# ✓ Input file hash matches
+# ✓ Filo version matches
+# ✓ Results reproduce identically
+```
+
+**This is gold in audits** - proves analysis is legitimate and reproducible.
 
 ---
 

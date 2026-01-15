@@ -19,3 +19,4 @@ structure:
 description: "Microsoft Cabinet Archive"
 references:
   - "https://en.wikipedia.org/wiki/Cabinet_(file_format)"
+extraction: "cabextract file.cab"

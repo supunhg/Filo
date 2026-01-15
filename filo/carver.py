@@ -137,8 +137,7 @@ class CarverEngine:
         if not spec or not spec.structure:
             return self._estimate_by_footer(data, format_name)
         
-        # For now, use footer detection as the primary method
-        # In future versions, we can add proper size field parsing from the structure spec
+        # Use footer detection as the primary size estimation method
         return self._estimate_by_footer(data, format_name)
     
     def _read_size_field(self, data: bytes, offset: int, size: int, endian: str) -> int:

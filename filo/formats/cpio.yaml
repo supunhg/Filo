@@ -1,0 +1,47 @@
+format: cpio
+version: "1.0"
+mime:
+  - application/x-cpio
+category: archive
+confidence_weight: 0.95
+extensions:
+  - cpio
+
+description: "CPIO archive format - Unix archive container"
+references:
+  - "https://en.wikipedia.org/wiki/Cpio"
+extraction: "cpio -idv < file.cpio"
+
+signatures:
+  # ASCII cpio (SVR4/newc format) - most common modern format
+  - offset: 0
+    hex: "303730373031"
+    description: "ASCII cpio magic (070701)"
+    weight: 0.9
+    
+  # Binary cpio (little-endian) - older binary format
+  - offset: 0
+    hex: "c771"
+    description: "Binary cpio magic (little-endian)"
+    weight: 0.9
+    
+  # ASCII cpio (old format) - legacy
+  - offset: 0
+    hex: "303730373037"
+    description: "ASCII cpio old format (070707)"
+    weight: 0.7
+    
+  # Binary cpio (big-endian) - rare
+  - offset: 0
+    hex: "71c7"
+    description: "Binary cpio magic (big-endian)"
+    weight: 0.6
+
+structure:
+  header:
+    description: "CPIO archive header"
+    fields:
+      - name: magic
+        offset: 0
+        size: 6
+        description: "Magic number"

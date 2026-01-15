@@ -9,6 +9,7 @@ extensions:
   - bzip2
 
 description: "Bzip2 compressed file"
+extraction: "bunzip2 file.bz2  or  bzip2 -d file.bz2"
 
 signatures:
   - offset: 0

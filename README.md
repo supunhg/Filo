@@ -16,7 +16,9 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - 🕵️ **Embedded Detection**: Find files hidden inside files - ZIP in EXE, PNG after EOF (malware hunter candy)
 - 🔧 **Tool Fingerprinting**: Identify how/when/with what tools a file was created (forensic attribution)
 - ⚠️ **Polyglot Detection** *(NEW v0.2.5)*: Detect dual-format files (GIFAR, PNG+ZIP, PDF+JS) with risk assessment
-- 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
+- 🎨 **Steganography Detection** *(NEW v0.2.6)*: LSB/MSB analysis for PNG/BMP, PDF metadata extraction, trailing data detection, flag pattern recognition
+- 🌐 **PCAP Analysis** *(NEW v0.2.6)*: Network capture file analysis with protocol detection, string extraction, base64 decoding, flag hunting
+- �🚀 **Batch Processing**: Parallel directory analysis with configurable workers
 - 🔗 **Hash Lineage Tracking**: Cryptographic chain-of-custody for court evidence
 - 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
 - ⚡ **Performance Profiling**: Identify bottlenecks in large-scale analysis
@@ -47,6 +49,15 @@ pip install -e .
 ```bash
 # Analyze unknown file
 filo analyze suspicious.bin
+
+# Detect steganography in images (LSB/MSB analysis, metadata, trailing data)
+filo stego image.png
+filo stego image.png --extract="b1,rgb,lsb,xy" -o hidden.txt
+filo stego document.pdf  # PDF metadata extraction
+filo stego photo.jpg     # Trailing data detection
+
+# Analyze PCAP network capture files
+filo pcap capture.pcap
 
 # Show detailed confidence breakdown (forensic-grade)
 filo analyze --explain file.bin
@@ -263,7 +274,73 @@ filo analyze --all-evidence file.zip
 - [Architecture](ARCHITECTURE.md) - Detailed system design
 - [Examples](examples/README.md) - Code examples and demos
 
-## What's New in v0.2.5
+## What's New in v0.2.6
+
+🎨 **Steganography Detection**
+
+Detect hidden data in image files and documents:
+
+```bash
+filo stego image.png
+
+# Output:
+# 🔍 Steganography Analysis: image.png
+# 
+# ✓ Potential Hidden Data Found (3 methods)
+# 
+# Method: b1,rgb,lsb,xy
+#   Confidence: 95% (FLAG PATTERN DETECTED)
+#   Data: picoCTF{h1dd3n_1n_LSB}
+```
+
+**Features:**
+- ✅ **LSB/MSB Detection**: Extract data from least/most significant bits (PNG, BMP)
+- ✅ **Multiple Channels**: Test RGB, RGBA, individual channels (r, g, b, a), BGR
+- ✅ **Bit Orders**: Both LSB and MSB with row/column-major ordering
+- ✅ **PDF Metadata**: Extract hidden flags from Author, Title, Subject, Keywords
+- ✅ **Trailing Data**: Detect data after JPEG EOI, PNG IEND, PDF EOF markers
+- ✅ **Flag Recognition**: Automatic CTF flag pattern detection (picoCTF{}, flag{}, HTB{})
+- ✅ **Auto-Decode**: Automatic base64 and zlib decompression
+- ✅ **Extraction**: Save specific channels/methods to files
+
+🌐 **PCAP Network Analysis**
+
+Quick triage for network capture files:
+
+```bash
+filo pcap dump.pcap
+
+# Output:
+# 📊 Statistics
+#   Packets: 1,234
+#   Protocols: TCP (800), UDP (400), ICMP (34)
+# 
+# 🚩 FLAGS FOUND (2)
+#   picoCTF{n3tw0rk_f0r3n51c5}
+#   flag{hidden_in_packets}
+# 
+# 📝 Base64 Data
+#   cGljb0NURnsuLi59 → picoCTF{...}
+```
+
+**Features:**
+- ✅ **Protocol Detection**: IPv4, IPv6, TCP, UDP, ICMP, ARP
+- ✅ **String Extraction**: ASCII strings from packet payloads
+- ✅ **Base64 Decoding**: Automatic detection and decoding
+- ✅ **Flag Hunting**: CTF flag pattern search across all packets
+- ✅ **HTTP Extraction**: GET/POST requests and headers
+- ✅ **Lightweight**: No Wireshark/tshark dependency for quick triage
+
+**New Format Support:**
+- 📦 **PCAP/PCAPNG**: Network capture files (little/big-endian)
+- 📜 **Shell Archives (shar)**: Self-extracting shell script archives
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v0.2.5 - Polyglot & Dual-Format Detection</strong></summary>
 
 ⚠️ **Major New Feature: Polyglot & Dual-Format Detection**
 

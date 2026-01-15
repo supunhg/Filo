@@ -8,6 +8,7 @@ extensions:
   - 7z
 
 description: "7-Zip compressed archive"
+extraction: "7z x file.7z"
 
 signatures:
   - offset: 0

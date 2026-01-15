@@ -11,6 +11,7 @@ extensions:
 description: "RAR archive format"
 references:
   - "https://www.rarlab.com/technote.htm"
+extraction: "unrar x file.rar"
 
 signatures:
   - offset: 0

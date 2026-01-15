@@ -1,0 +1,67 @@
+format: pcap
+version: "1.0"
+mime:
+  - application/vnd.tcpdump.pcap
+  - application/x-pcapng
+category: network
+confidence_weight: 0.98
+extensions:
+  - pcap
+  - pcapng
+  - cap
+  - dmp
+
+description: "Packet Capture (PCAP/PCAPNG) network traffic capture file"
+references:
+  - "https://wiki.wireshark.org/Development/LibpcapFileFormat"
+
+signatures:
+  # PCAP - Little Endian (most common - tcpdump/wireshark default)
+  - offset: 0
+    hex: "D4C3B2A1"
+    description: "PCAP magic number (little-endian)"
+    weight: 0.9
+    
+  # PCAP - Big Endian  
+  - offset: 0
+    hex: "A1B2C3D4"
+    description: "PCAP magic number (big-endian)"
+    weight: 0.9
+    
+  # PCAP - Nanosecond resolution variants
+  - offset: 0
+    hex: "4D3CB2A1"
+    description: "PCAP magic number (nanosecond, little-endian)"
+    weight: 0.7
+    
+  # PCAP Next Generation
+  - offset: 0
+    hex: "0A0D0D0A"
+    description: "PCAPNG Section Header Block"
+    weight: 0.7
+
+structure:
+  header:
+    description: "PCAP Global Header (24 bytes)"
+    fields:
+      - name: magic_number
+        offset: 0
+        size: 4
+      - name: version_major
+        offset: 4
+        size: 2
+      - name: version_minor
+        offset: 6
+        size: 2
+      - name: thiszone
+        offset: 8
+        size: 4
+      - name: sigfigs
+        offset: 12
+        size: 4
+      - name: snaplen
+        offset: 16
+        size: 4
+      - name: network
+        offset: 20
+        size: 4

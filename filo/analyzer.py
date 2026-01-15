@@ -110,6 +110,78 @@ class SignatureAnalyzer:
                     )
         
         return sorted(results, key=lambda r: r.confidence, reverse=True)
+    
+    def fuzzy_match(self, data: bytes, max_bytes: int = 8192) -> list[DetectionResult]:
+        """
+        Detect corrupted file signatures by fuzzy matching.
+        Returns possible formats when signatures are partially corrupted.
+        """
+        results: list[DetectionResult] = []
+        scan_data = data[:max_bytes]
+        
+        # Focus on formats commonly corrupted in CTF challenges
+        priority_formats = ['png', 'jpeg', 'gif', 'pdf', 'bmp', 'zip']
+        
+        for format_name in priority_formats:
+            if format_name not in self.database._formats:
+                continue
+                
+            format_spec = self.database._formats[format_name]
+            
+            for sig in format_spec.signatures:
+                if sig.offset >= len(data):
+                    continue
+                
+                sig_bytes = bytes.fromhex(sig.hex)
+                sig_len = len(sig_bytes)
+                
+                # Check if we have enough data
+                if sig.offset + sig_len > len(scan_data):
+                    continue
+                
+                actual_bytes = scan_data[sig.offset:sig.offset + sig_len]
+                
+                # Count matching bytes
+                matches = sum(1 for a, b in zip(actual_bytes, sig_bytes) if a == b)
+                match_ratio = matches / sig_len if sig_len > 0 else 0
+                
+                # If 40-90% of bytes match, it's likely corrupted
+                if 0.4 <= match_ratio < 0.95:
+                    # Build corruption details
+                    corruptions = []
+                    for i, (actual, expected) in enumerate(zip(actual_bytes, sig_bytes)):
+                        if actual != expected:
+                            corruptions.append(f"byte {i}: 0x{actual:02X} (expected 0x{expected:02X})")
+                    
+                    # Limit to first 5 corruptions
+                    corruption_desc = '; '.join(corruptions[:5])
+                    if len(corruptions) > 5:
+                        corruption_desc += f" ... and {len(corruptions) - 5} more"
+                    
+                    confidence = match_ratio * 0.6  # Lower confidence for fuzzy matches
+                    
+                    results.append(
+                        DetectionResult(
+                            format=f"{format_spec.format} (corrupted)",
+                            confidence=confidence,
+                            evidence=[
+                                f"Partially corrupted signature at offset {sig.offset}",
+                                f"{matches}/{sig_len} bytes match ({match_ratio*100:.1f}%)",
+                                f"Corruptions: {corruption_desc}"
+                            ],
+                            weight=0.7,
+                            contributions=[
+                                ConfidenceContribution(
+                                    source="fuzzy_signature",
+                                    value=confidence,
+                                    description=f"Fuzzy match: {match_ratio*100:.1f}% similarity"
+                                )
+                            ],
+                        )
+                    )
+                    break  # One fuzzy match per format is enough
+        
+        return sorted(results, key=lambda r: r.confidence, reverse=True)
 
 
 class StructuralAnalyzer:
@@ -601,16 +673,41 @@ class Analyzer:
             ]
             alternatives.sort(key=lambda x: x[1], reverse=True)
         else:
-            primary_format = "unknown"
-            confidence = 0.0
-            alternatives = []
+            # No format detected - try fuzzy matching for corrupted files
+            fuzzy_results = self.signature_analyzer.fuzzy_match(data)
+            
+            if fuzzy_results:
+                # Report the best fuzzy match
+                best_match = fuzzy_results[0]
+                primary_format = best_match.format
+                confidence = best_match.confidence
+                
+                evidence_chain.append({
+                    "module": "fuzzy_signature_analysis",
+                    "format": best_match.format,
+                    "confidence": best_match.confidence,
+                    "evidence": best_match.evidence,
+                    "weight": best_match.weight,
+                    "contributions": [c.model_dump() for c in best_match.contributions] if best_match.contributions else [],
+                })
+                
+                alternatives = [
+                    (r.format, r.confidence) for r in fuzzy_results[1:3]
+                ]
+            else:
+                primary_format = "unknown"
+                confidence = 0.0
+                alternatives = []
         
         # Detect contradictions
         contradictions = []
         try:
+            # Strip " (corrupted)" suffix for format comparison (fuzzy matches append this)
+            clean_format = primary_format.replace(" (corrupted)", "")
+            
             # Gather context for contradiction checks
             context = {}
-            if primary_format in ['docx', 'xlsx', 'pptx', 'zip', 'odt', 'odp', 'ods']:
+            if clean_format in ['docx', 'xlsx', 'pptx', 'zip', 'odt', 'odp', 'ods']:
                 # Get ZIP namelist if available
                 for evidence in evidence_chain:
                     if evidence.get("module") == "zip_container_analysis":
@@ -623,8 +720,8 @@ class Analyzer:
                             pass
                         break
             
-            # Run contradiction detection
-            contradictions = ContradictionDetector.detect_all(data, primary_format, **context)
+            # Run contradiction detection with clean format name
+            contradictions = ContradictionDetector.detect_all(data, clean_format, **context)
         except Exception as e:
             logger.debug(f"Contradiction detection failed: {e}")
         

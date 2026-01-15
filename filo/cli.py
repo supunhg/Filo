@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -23,6 +24,8 @@ from filo.container import ContainerDetector
 from filo.profiler import Profiler
 from filo.lineage import LineageTracker, OperationType
 from filo.ml import MLDetector
+from filo.stego import detect_steganography
+from filo.pcap import analyze_pcap
 
 console = Console()
 
@@ -133,6 +136,13 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
             confidence_color = "green" if result.confidence > 0.8 else "yellow" if result.confidence > 0.5 else "red"
             console.print(f"\n[bold]Detected Format:[/bold] [{confidence_color}]{result.primary_format}[/{confidence_color}]")
             console.print(f"[bold]Confidence:[/bold] [{confidence_color}]{result.confidence:.1%}[/{confidence_color}]")
+            
+            # Show extraction command for archives
+            from filo.formats import FormatDatabase
+            db = FormatDatabase()
+            format_spec = db.get_format(result.primary_format)
+            if format_spec and format_spec.extraction:
+                console.print(f"\n[bold cyan]📦 Extraction:[/bold cyan] [green]{format_spec.extraction}[/green]")
             
             # Confidence breakdown (if --explain flag is used)
             if explain:
@@ -423,20 +433,33 @@ def repair(
         
         # Write output
         if report.success and not dry_run:
+            file_path_obj = Path(file_path)
+            
             if output_path is None:
-                output_path = file_path
-            
-            out_path = Path(output_path)
-            
-            # Backup
-            if not no_backup and out_path == Path(file_path):
-                backup_path = out_path.with_suffix(out_path.suffix + ".bak")
-                backup_path.write_bytes(data)
-                console.print(f"\n[dim]Backup created: {backup_path}[/dim]")
-            
-            # Write repaired file
-            out_path.write_bytes(repaired_data)
-            console.print(f"[green]✓ Repaired file written to: {out_path}[/green]")
+                # No output specified - replace original with repaired, backup original
+                backup_path = Path(f"{file_path}.bak")
+                
+                if not no_backup:
+                    # Backup original
+                    backup_path.write_bytes(data)
+                    console.print(f"\n[dim]✓ Original backed up to: {backup_path}[/dim]")
+                
+                # Write repaired to original location
+                file_path_obj.write_bytes(repaired_data)
+                console.print(f"[green]✓ Repaired file written to: {file_path}[/green]")
+                
+                # Suggest viewing the file if it's an image
+                if format_name in ['bmp', 'png', 'jpeg', 'gif', 'tiff']:
+                    console.print(f"\n[dim]💡 Tip: Open {file_path} in an image viewer to see the result[/dim]")
+            else:
+                # Output path specified - write repaired to new location, keep original
+                out_path = Path(output_path)
+                out_path.write_bytes(repaired_data)
+                console.print(f"[green]✓ Repaired file written to: {out_path}[/green]")
+                
+                # Suggest viewing the file if it's an image
+                if format_name in ['bmp', 'png', 'jpeg', 'gif', 'tiff']:
+                    console.print(f"\n[dim]💡 Tip: Open {out_path} in an image viewer to see the result[/dim]")
         elif dry_run:
             console.print("\n[dim]Dry run - no files written[/dim]")
     
@@ -759,8 +782,7 @@ def lineage(file_hash: str, output_format: str, output: Optional[str]) -> None:
             console.print("[red]Error: Hash must be at least 8 characters[/red]")
             sys.exit(1)
         
-        # For partial hashes, we'd need to query the database
-        # For now, require full hash (this can be enhanced)
+        # For partial hashes, query may return multiple results
         if len(file_hash) != 64:
             console.print("[yellow]Warning: Partial hash provided, results may be limited[/yellow]")
             console.print("[yellow]For best results, provide full 64-character SHA-256 hash[/yellow]\n")
@@ -948,6 +970,380 @@ def reset_lineage(yes: bool) -> None:
         
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("-a", "--all", "show_all", is_flag=True, help="Show all methods (slower)")
+@click.option("-E", "--extract", "extract_method", help="Extract data from specific method (e.g., 'b1,rgba,lsb,xy')")
+@click.option("-o", "--output", "output_path", type=click.Path(), help="Save extracted data to file")
+@click.option("--limit", default=256, type=int, help="Limit bytes checked (0 = no limit)")
+def stego(file_path: str, show_all: bool, extract_method: Optional[str], output_path: Optional[str], limit: int) -> None:
+    """
+    Detect steganography in files (LSB analysis, metadata, etc.).
+    
+    Supports:
+    - PNG/BMP: LSB analysis (zsteg-compatible)
+    - PDF: Metadata analysis
+    
+    Examples:
+        filo stego image.png
+        filo stego document.pdf
+        filo stego image.png --extract="b1,rgba,lsb,xy" -o output.txt
+    """
+    try:
+        if extract_method:
+            # Extract specific method
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            
+            from filo.stego import PNGStegoDetector, BMPStegoDetector, BitOrder
+            
+            if data.startswith(b'\x89PNG'):
+                detector = PNGStegoDetector()
+            elif data.startswith(b'BM'):
+                detector = BMPStegoDetector()
+            else:
+                console.print("[red]File is not a PNG or BMP image[/red]")
+                sys.exit(1)
+            
+            # Parse method string (e.g., "b1,rgba,lsb,xy")
+            parts = extract_method.split(',')
+            if len(parts) < 4:
+                console.print("[red]Invalid method format. Use: 'bits,channels,order,pixelorder'[/red]")
+                console.print("[dim]Example: b1,rgba,lsb,xy[/dim]")
+                sys.exit(1)
+            
+            bits_str = parts[0]
+            bits = int(bits_str.lstrip('b').rstrip('b'))
+            channels = parts[1]
+            bit_order = parts[2]
+            pixel_order = parts[3]
+            
+            # Extract data using Python implementation
+            png_info = detector.parse_png(data)
+            if png_info and png_info['clean_pixels']:
+                image_data = png_info['clean_pixels']
+            else:
+                console.print("[red]Failed to parse image[/red]")
+                sys.exit(1)
+            
+            extracted = detector.extractor.extract_bits(
+                image_data,
+                bits=bits,
+                order=BitOrder.LSB if bit_order == "lsb" else BitOrder.MSB
+            )
+            
+            if output_path:
+                with open(output_path, 'wb') as f:
+                    f.write(extracted)
+                console.print(f"[green]✓ Extracted {len(extracted)} bytes to {output_path}[/green]")
+            else:
+                # Try to display as text
+                try:
+                    text = extracted.decode('utf-8', errors='ignore')
+                    console.print(text)
+                except:
+                    # Show hex dump
+                    console.print(f"[dim]Binary data ({len(extracted)} bytes):[/dim]")
+                    _print_hex_dump(extracted[:256])
+            
+            return
+        
+        # Normal detection mode
+        console.print(Panel.fit(
+            f"[bold cyan]Steganography Analysis:[/bold cyan] {file_path}",
+            border_style="cyan"
+        ))
+        
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        
+        results = detect_steganography(data)
+        
+        if not results:
+            console.print("\n[yellow]No steganography detected[/yellow]")
+            return
+        
+        console.print(f"\n[green]Found {len(results)} results:[/green]\n")
+        
+        for i, result in enumerate(results):
+            if not show_all and i >= 10:
+                console.print(f"\n[dim]... and {len(results) - 10} more results (use --all to show)[/dim]")
+                break
+            
+            # Color based on data type and confidence
+            if result.data_type == 'text':
+                color = "green"
+            elif result.data_type in ['zlib', 'file']:
+                color = "cyan"
+            else:
+                color = "yellow" if result.confidence > 0.7 else "dim"
+            
+            console.print(f"[{color}]{result.method:30}[/{color}] .. {result.description}")
+        
+        console.print(f"\n[dim]Tip: Use --extract=METHOD to extract specific data[/dim]")
+        console.print(f"[dim]Example: filo stego {file_path} --extract=\"b1,rgba,lsb,xy\" -o output.txt[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        import traceback
+        if '--verbose' in sys.argv or '-v' in sys.argv:
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+def pcap(file_path: str) -> None:
+    """
+    Analyze PCAP network capture files.
+    
+    Quick triage for CTF challenges:
+    - Packet statistics
+    - Protocol breakdown
+    - String extraction
+    - Base64 data detection
+    - Flag pattern search
+    - HTTP requests
+    
+    Examples:
+        filo pcap capture.pcap
+        filo pcap network.pcapng
+    """
+    try:
+        console.print(Panel(
+            f"PCAP Analysis: {Path(file_path).name}",
+            style="bold cyan"
+        ))
+        
+        stats = analyze_pcap(file_path)
+        
+        if not stats:
+            console.print("[red]Error: Not a valid PCAP file[/red]")
+            console.print("[dim]Supported: .pcap files (libpcap format)[/dim]")
+            sys.exit(1)
+        
+        # Display statistics
+        console.print(f"\n[bold]📊 Statistics[/bold]")
+        console.print(f"  Packets: {stats.packet_count:,}")
+        console.print(f"  Total bytes: {stats.total_bytes:,}")
+        console.print(f"  File size: {stats.file_size:,} bytes")
+        
+        # Protocol breakdown
+        if stats.protocols:
+            console.print(f"\n[bold]🔌 Protocols[/bold]")
+            for protocol, count in stats.protocols.most_common(10):
+                console.print(f"  {protocol}: {count:,} packets")
+        
+        # Flags found
+        if stats.flags:
+            console.print(f"\n[bold green]🚩 FLAGS FOUND ({len(stats.flags)})[/bold green]")
+            for flag in stats.flags:
+                console.print(f"  [red bold]{flag}[/red bold]")
+        
+        # Base64 data
+        if stats.base64_data:
+            console.print(f"\n[bold]📝 Base64 Data ({len(stats.base64_data)} found)[/bold]")
+            for raw, decoded in stats.base64_data[:10]:
+                console.print(f"  [cyan]{raw}...[/cyan]")
+                console.print(f"  → {decoded[:100]}")
+                console.print()
+        
+        # HTTP requests
+        if stats.http_requests:
+            console.print(f"\n[bold]🌐 HTTP Requests ({len(stats.http_requests)} found)[/bold]")
+            for req in stats.http_requests[:15]:
+                console.print(f"  {req}")
+        
+        # Interesting strings
+        if stats.strings:
+            console.print(f"\n[bold]💬 Interesting Strings ({len(stats.strings)} found)[/bold]")
+            for s in stats.strings[:15]:
+                # Truncate long strings
+                display = s[:80] + "..." if len(s) > 80 else s
+                console.print(f"  {display}")
+        
+        # Recommendations
+        console.print(f"\n[bold]💡 Next Steps[/bold]")
+        console.print(f"  • Open in Wireshark for detailed protocol analysis")
+        console.print(f"  • Use 'tshark -r {file_path}' for packet inspection")
+        console.print(f"  • Export HTTP objects: tshark -r {file_path} --export-objects http,./output")
+        
+        if stats.flags:
+            console.print(f"\n[bold green]✓ Found {len(stats.flags)} flag(s) - check above![/bold green]")
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        import traceback
+        if '--verbose' in sys.argv or '-v' in sys.argv:
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("-o", "--output", type=click.Path(), help="Output directory for extracted files")
+@click.option("-r", "--recursive", is_flag=True, default=True, help="Recursively extract nested archives (default: on)")
+@click.option("--max-depth", type=int, default=10, help="Maximum nesting depth (default: 10)")
+def extract(file_path: str, output: Optional[str], recursive: bool, max_depth: int) -> None:
+    """
+    Extract nested archives and polyglots recursively.
+    
+    Automatically detects and extracts:
+    - ZIP archives embedded in images (polyglots)
+    - Nested archives (zip in zip, etc.)
+    - Trailing data after image markers
+    
+    Perfect for CTF challenges like Matryoshka dolls!
+    
+    Examples:
+        filo extract dolls.jpg
+        filo extract polyglot.png -o extracted/
+        filo extract nested.zip --max-depth 5
+    """
+    import zipfile
+    import shutil
+    from pathlib import Path
+    
+    try:
+        file_path = Path(file_path)
+        
+        # Set output directory
+        if output:
+            output_dir = Path(output)
+        else:
+            output_dir = Path.cwd() / f"{file_path.stem}_extracted"
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        console.print(Panel(
+            f"[bold cyan]Recursive Extraction:[/bold cyan] {file_path.name}",
+            border_style="cyan"
+        ))
+        
+        extracted_count = 0
+        current_depth = 0
+        files_to_process = [(file_path, output_dir, 0)]
+        processed_hashes = set()
+        extraction_tree = []
+        
+        while files_to_process:
+            current_file, current_output, depth = files_to_process.pop(0)
+            
+            if depth > max_depth:
+                console.print(f"[yellow]⚠ Max depth ({max_depth}) reached, stopping[/yellow]")
+                break
+            
+            # Avoid processing the same file twice
+            import hashlib
+            with open(current_file, 'rb') as f:
+                file_hash = hashlib.sha256(f.read()).hexdigest()
+            
+            if file_hash in processed_hashes:
+                continue
+            processed_hashes.add(file_hash)
+            
+            # Analyze the file
+            analyzer = Analyzer()
+            result = analyzer.analyze_file(current_file)
+            
+            indent = "  " * depth
+            console.print(f"\n{indent}[cyan]→[/cyan] {current_file.name} ({result.primary_format}, {result.confidence:.1%})")
+            
+            # Check for polyglots
+            extracted_from_polyglot = False
+            if result.polyglots:
+                for polyglot in result.polyglots:
+                    if 'zip' in polyglot.formats:
+                        console.print(f"{indent}  [yellow]📦 Polyglot detected:[/yellow] {' + '.join(polyglot.formats)}")
+                        
+                        # Try to extract as ZIP
+                        try:
+                            with zipfile.ZipFile(current_file, 'r') as zf:
+                                for member in zf.namelist():
+                                    extracted_path = current_output / member
+                                    extracted_path.parent.mkdir(parents=True, exist_ok=True)
+                                    
+                                    with zf.open(member) as source, open(extracted_path, 'wb') as target:
+                                        target.write(source.read())
+                                    
+                                    console.print(f"{indent}    [green]✓[/green] Extracted: {member}")
+                                    extracted_count += 1
+                                    
+                                    # Add to processing queue if recursive
+                                    if recursive and extracted_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.zip', '.gz', '.bz2', '.tar']:
+                                        files_to_process.append((extracted_path, extracted_path.parent, depth + 1))
+                                    
+                                    extracted_from_polyglot = True
+                        except zipfile.BadZipFile:
+                            console.print(f"{indent}    [red]✗[/red] Failed to extract ZIP data")
+                        except Exception as e:
+                            console.print(f"{indent}    [red]✗[/red] Error: {e}")
+            
+            # Check for regular archives
+            if not extracted_from_polyglot and result.primary_format in ['zip', 'tar', 'gzip', 'bzip2', '7z', 'rar']:
+                console.print(f"{indent}  [yellow]📦 Archive detected:[/yellow] {result.primary_format}")
+                
+                # Extract based on format
+                try:
+                    if result.primary_format == 'zip':
+                        with zipfile.ZipFile(current_file, 'r') as zf:
+                            for member in zf.namelist():
+                                extracted_path = current_output / member
+                                extracted_path.parent.mkdir(parents=True, exist_ok=True)
+                                
+                                with zf.open(member) as source, open(extracted_path, 'wb') as target:
+                                    target.write(source.read())
+                                
+                                console.print(f"{indent}    [green]✓[/green] Extracted: {member}")
+                                extracted_count += 1
+                                
+                                if recursive:
+                                    files_to_process.append((extracted_path, extracted_path.parent, depth + 1))
+                    
+                    # Add support for other formats if needed
+                    
+                except Exception as e:
+                    console.print(f"{indent}    [red]✗[/red] Error: {e}")
+        
+        console.print(f"\n[bold green]✓ Extraction complete![/bold green]")
+        console.print(f"  Total files extracted: {extracted_count}")
+        console.print(f"  Output directory: {output_dir}")
+        
+        # Search for flags in extracted text files
+        flag_pattern = re.compile(rb'(picoCTF|flag|ctf|HTB)\{[^}]+\}', re.IGNORECASE)
+        flags_found = []
+        
+        for txt_file in output_dir.rglob('*.txt'):
+            try:
+                with open(txt_file, 'rb') as f:
+                    content = f.read()
+                    matches = flag_pattern.findall(content)
+                    for match in matches:
+                        flag_text = match.decode('utf-8', errors='ignore')
+                        # Find the full flag including prefix
+                        full_match = re.search(rb'[a-zA-Z0-9_]+\{[^}]+\}', content)
+                        if full_match:
+                            flag_text = full_match.group(0).decode('utf-8', errors='ignore')
+                        flags_found.append((txt_file.relative_to(output_dir), flag_text))
+            except:
+                pass
+        
+        if flags_found:
+            console.print(f"\n[bold yellow]🚩 Flags found:[/bold yellow]")
+            for filename, flag in flags_found:
+                console.print(f"  [green]{filename}:[/green] {flag}")
+        
+        if extracted_count == 0:
+            console.print(f"\n[yellow]No archives or polyglots found to extract[/yellow]")
+    
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        if "--debug" in sys.argv:
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 

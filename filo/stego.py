@@ -249,12 +249,211 @@ class PNGStegoDetector:
     def __init__(self):
         self.extractor = LSBExtractor()
     
+    def extract_png_metadata(self, data: bytes) -> list[StegoResult]:
+        """Extract metadata from PNG text chunks (tEXt, iTXt, zTXt).
+        
+        This mimics zsteg's metadata extraction behavior.
+        """
+        results = []
+        
+        if not data.startswith(b'\x89PNG\r\n\x1a\n'):
+            return results
+        
+        offset = 8  # Skip PNG signature
+        
+        while offset < len(data):
+            if offset + 8 > len(data):
+                break
+            
+            try:
+                # Read chunk length and type
+                chunk_len = struct.unpack('>I', data[offset:offset+4])[0]
+                chunk_type = data[offset+4:offset+8]
+                chunk_data_start = offset + 8
+                chunk_data_end = chunk_data_start + chunk_len
+                
+                if chunk_data_end > len(data):
+                    break
+                
+                chunk_data = data[chunk_data_start:chunk_data_end]
+                
+                # tEXt chunk: keyword\0text
+                if chunk_type == b'tEXt':
+                    null_pos = chunk_data.find(b'\0')
+                    if null_pos > 0:
+                        keyword = chunk_data[:null_pos].decode('latin1', errors='ignore')
+                        text = chunk_data[null_pos+1:].decode('latin1', errors='ignore')
+                        
+                        # Check for flags
+                        flag = self.extractor.detect_flag_patterns(text.encode('utf-8'))
+                        confidence = 1.0 if flag else 0.7
+                        
+                        results.append(StegoResult(
+                            method=f"meta {keyword}",
+                            channel="tEXt",
+                            bit_plane=0,
+                            order="metadata",
+                            data=text.encode('utf-8'),
+                            data_type="text",
+                            description=f"text: \"{text}\"" if not flag else f"FLAG: {flag}",
+                            confidence=confidence,
+                            offset=chunk_data_start,
+                            size=len(text)
+                        ))
+                
+                # iTXt chunk: keyword\0compression\0language\0translated_keyword\0text
+                elif chunk_type == b'iTXt':
+                    null_pos = chunk_data.find(b'\0')
+                    if null_pos > 0:
+                        keyword = chunk_data[:null_pos].decode('utf-8', errors='ignore')
+                        remaining = chunk_data[null_pos+1:]
+                        
+                        if len(remaining) >= 2:
+                            compression_flag = remaining[0]
+                            compression_method = remaining[1]
+                            
+                            # Find language and text
+                            remaining = remaining[2:]
+                            null_pos2 = remaining.find(b'\0')
+                            if null_pos2 >= 0:
+                                language = remaining[:null_pos2].decode('utf-8', errors='ignore')
+                                remaining = remaining[null_pos2+1:]
+                                
+                                # Skip translated keyword
+                                null_pos3 = remaining.find(b'\0')
+                                if null_pos3 >= 0:
+                                    text_data = remaining[null_pos3+1:]
+                                    
+                                    # Decompress if needed
+                                    if compression_flag == 1:
+                                        try:
+                                            text_data = zlib.decompress(text_data)
+                                        except:
+                                            pass
+                                    
+                                    text = text_data.decode('utf-8', errors='ignore')
+                                    
+                                    # Check for flags
+                                    flag = self.extractor.detect_flag_patterns(text.encode('utf-8'))
+                                    confidence = 1.0 if flag else 0.75
+                                    
+                                    results.append(StegoResult(
+                                        method=f"meta {keyword}",
+                                        channel="iTXt",
+                                        bit_plane=0,
+                                        order="metadata",
+                                        data=text.encode('utf-8'),
+                                        data_type="text",
+                                        description=f"file: {text[:100]}" if len(text) > 100 else f"text: \"{text}\"",
+                                        confidence=confidence,
+                                        offset=chunk_data_start,
+                                        size=len(text)
+                                    ))
+                
+                # zTXt chunk: keyword\0compression_method\compressed_text
+                elif chunk_type == b'zTXt':
+                    null_pos = chunk_data.find(b'\0')
+                    if null_pos > 0:
+                        keyword = chunk_data[:null_pos].decode('latin1', errors='ignore')
+                        
+                        if len(chunk_data) > null_pos + 2:
+                            compression_method = chunk_data[null_pos+1]
+                            compressed_text = chunk_data[null_pos+2:]
+                            
+                            try:
+                                text = zlib.decompress(compressed_text).decode('latin1', errors='ignore')
+                                
+                                # Check for flags
+                                flag = self.extractor.detect_flag_patterns(text.encode('utf-8'))
+                                confidence = 1.0 if flag else 0.7
+                                
+                                results.append(StegoResult(
+                                    method=f"meta {keyword}",
+                                    channel="zTXt",
+                                    bit_plane=0,
+                                    order="metadata",
+                                    data=text.encode('utf-8'),
+                                    data_type="text",
+                                    description=f"text: \"{text}\"" if not flag else f"FLAG: {flag}",
+                                    confidence=confidence,
+                                    offset=chunk_data_start,
+                                    size=len(text)
+                                ))
+                            except Exception as e:
+                                logger.debug(f"Failed to decompress zTXt chunk: {e}")
+                
+                # tIME chunk: last modification time
+                elif chunk_type == b'tIME' and len(chunk_data) >= 7:
+                    year = struct.unpack('>H', chunk_data[0:2])[0]
+                    month = chunk_data[2]
+                    day = chunk_data[3]
+                    hour = chunk_data[4]
+                    minute = chunk_data[5]
+                    second = chunk_data[6]
+                    
+                    time_str = f"{year:04d}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}"
+                    
+                    results.append(StegoResult(
+                        method="meta,tIME",
+                        channel="tIME",
+                        bit_plane=0,
+                        order="metadata",
+                        data=time_str.encode('utf-8'),
+                        data_type="timestamp",
+                        description=f"PNG modification time: {time_str}",
+                        confidence=0.5,
+                        offset=chunk_data_start,
+                        size=7
+                    ))
+                
+                # Move to next chunk
+                if chunk_type == b'IEND':
+                    break
+                
+                offset += 12 + chunk_len  # length(4) + type(4) + data(chunk_len) + CRC(4)
+                
+            except Exception as e:
+                logger.debug(f"Error parsing PNG chunk at offset {offset}: {e}")
+                break
+        
+        return results
+    
     def parse_png(self, data: bytes) -> Optional[dict]:
         """Parse PNG using PIL for reliable pixel extraction.
         
         Returns pixels in RGBA format, row by row (xy order),
         which matches zsteg's zpng behavior.
         """
+        # First, extract raw IDAT data manually (needed for imagedata analysis)
+        raw_idat_decompressed = b''
+        if data.startswith(b'\x89PNG\r\n\x1a\n'):
+            offset = 8
+            idat_compressed = b''
+            
+            while offset < len(data):
+                if offset + 8 > len(data):
+                    break
+                
+                try:
+                    chunk_len = struct.unpack('>I', data[offset:offset+4])[0]
+                    chunk_type = data[offset+4:offset+8]
+                    chunk_data = data[offset+8:offset+8+chunk_len]
+                    
+                    if chunk_type == b'IDAT':
+                        idat_compressed += chunk_data
+                    elif chunk_type == b'IEND':
+                        break
+                    
+                    offset += 12 + chunk_len
+                except:
+                    break
+            
+            if idat_compressed:
+                try:
+                    raw_idat_decompressed = zlib.decompress(idat_compressed)
+                except:
+                    pass
+        
         try:
             from PIL import Image
             import io
@@ -275,7 +474,8 @@ class PNGStegoDetector:
                 'width': img.width,
                 'height': img.height,
                 'mode': img.mode,
-                'clean_pixels': bytes(pixels)
+                'clean_pixels': bytes(pixels),
+                'raw_idat_decompressed': raw_idat_decompressed
             }
         except ImportError:
             logger.warning("PIL not available, falling back to manual PNG parsing")
@@ -296,7 +496,8 @@ class PNGStegoDetector:
             'color_type': 0,
             'image_data': b'',
             'chunks': [],
-            'clean_pixels': b''
+            'clean_pixels': b'',
+            'raw_idat_decompressed': b''  # Store raw decompressed data
         }
         
         offset = 8  # Skip PNG signature
@@ -328,6 +529,8 @@ class PNGStegoDetector:
         if info['image_data']:
             try:
                 decompressed = zlib.decompress(info['image_data'])
+                info['raw_idat_decompressed'] = decompressed  # Store raw decompressed data
+                
                 # Remove PNG filter bytes (first byte of each scanline)
                 bytes_per_pixel = 4 if info['color_type'] == 6 else 3  # RGBA or RGB
                 bytes_per_row = info['width'] * bytes_per_pixel + 1  # +1 for filter byte
@@ -345,6 +548,57 @@ class PNGStegoDetector:
                 logger.debug(f"Failed to process PNG pixels: {e}")
         
         return info
+    
+    def reorder_pixels(self, pixels: bytes, width: int, height: int, pixel_order: str) -> bytes:
+        """Reorder pixels according to traversal order.
+        
+        Args:
+            pixels: Raw pixel data in RGBA format (row-major, left-to-right, top-to-bottom)
+            width: Image width
+            height: Image height
+            pixel_order: Order to traverse pixels ('xy', 'yx', 'XY', 'YX')
+                xy: left-to-right, top-to-bottom (standard)
+                yx: top-to-bottom, left-to-right
+                XY: right-to-left, top-to-bottom
+                YX: bottom-to-top, left-to-right
+        
+        Returns:
+            Reordered pixel data
+        """
+        bytes_per_pixel = 4  # RGBA
+        
+        # xy order is already the native format
+        if pixel_order == "xy":
+            return pixels
+        
+        result = bytearray()
+        
+        if pixel_order == "yx":
+            # Top-to-bottom, left-to-right (column-major)
+            for x in range(width):
+                for y in range(height):
+                    pixel_offset = (y * width + x) * bytes_per_pixel
+                    result.extend(pixels[pixel_offset:pixel_offset + bytes_per_pixel])
+        
+        elif pixel_order == "XY":
+            # Right-to-left, top-to-bottom
+            for y in range(height):
+                for x in range(width - 1, -1, -1):
+                    pixel_offset = (y * width + x) * bytes_per_pixel
+                    result.extend(pixels[pixel_offset:pixel_offset + bytes_per_pixel])
+        
+        elif pixel_order == "YX":
+            # Bottom-to-top, left-to-right
+            for x in range(width):
+                for y in range(height - 1, -1, -1):
+                    pixel_offset = (y * width + x) * bytes_per_pixel
+                    result.extend(pixels[pixel_offset:pixel_offset + bytes_per_pixel])
+        
+        else:
+            # Unknown order, return original
+            return pixels
+        
+        return bytes(result)
     
     def extract_channel_bits(self, pixels: bytes, channels: str, bits_per_channel: int = 1, bit_order: str = "lsb") -> list[int]:
         """Extract bits from specific color channels.
@@ -396,6 +650,69 @@ class PNGStegoDetector:
         
         return bits
     
+    def analyze_imagedata(self, data: bytes, raw_idat_decompressed: bytes = None) -> Optional[StegoResult]:
+        """Analyze raw pixel data for patterns (like zsteg's imagedata).
+        
+        This looks at the decompressed IDAT data (before filter byte removal)
+        to find readable patterns or text.
+        
+        Args:
+            data: Clean pixel data (for fallback)
+            raw_idat_decompressed: Raw decompressed IDAT data (with filter bytes)
+        """
+        # Prefer raw IDAT data if available
+        analyze_data = raw_idat_decompressed if raw_idat_decompressed else data
+        
+        # Look through the entire data for printable sequences
+        best_text = None
+        best_length = 0
+        
+        # Scan through data looking for printable sequences
+        i = 0
+        while i < len(analyze_data):
+            # Start collecting printable characters
+            printable_chars = []
+            start_pos = i
+            
+            while i < len(analyze_data):
+                byte = analyze_data[i]
+                if 32 <= byte <= 126 or byte in (9, 10, 13):  # Printable or whitespace
+                    printable_chars.append(chr(byte))
+                    i += 1
+                else:
+                    break
+            
+            # If we found a good sequence, keep track of it
+            if len(printable_chars) >= 8:
+                text = ''.join(printable_chars)
+                if len(text) > best_length:
+                    best_text = text
+                    best_length = len(text)
+            
+            i += 1
+        
+        if best_text and len(best_text) >= 8:
+            # Limit display to reasonable length
+            display_text = best_text[:100] if len(best_text) > 100 else best_text
+            
+            # Use repr to properly escape special characters
+            display_text = repr(display_text)[1:-1]  # Remove outer quotes
+            
+            return StegoResult(
+                method="imagedata",
+                channel="pixels",
+                bit_plane=0,
+                order="raw",
+                data=best_text.encode('utf-8'),
+                data_type="text",
+                description=f'text: "{display_text}"',
+                confidence=0.6,
+                offset=0,
+                size=len(best_text)
+            )
+        
+        return None
+    
     def detect(self, data: bytes) -> list[StegoResult]:
         """
         Detect LSB steganography in PNG file.
@@ -408,6 +725,10 @@ class PNGStegoDetector:
         """
         results = []
         
+        # First, extract PNG metadata chunks (tEXt, iTXt, zTXt) - like zsteg does
+        metadata_results = self.extract_png_metadata(data)
+        results.extend(metadata_results)
+        
         png_info = self.parse_png(data)
         if not png_info or not png_info['clean_pixels']:
             return results
@@ -415,9 +736,15 @@ class PNGStegoDetector:
         # Use clean pixel data (RGBA format)
         image_data = png_info['clean_pixels']
         
+        # Analyze raw imagedata (decompressed IDAT with filter bytes) - like zsteg
+        raw_idat = png_info.get('raw_idat_decompressed', b'')
+        imagedata_result = self.analyze_imagedata(image_data, raw_idat)
+        if imagedata_result:
+            results.append(imagedata_result)
+        
         # Test different bit planes and channels
         test_configs = [
-            # LSB tests
+            # LSB tests - xy order (standard: left-to-right, top-to-bottom)
             (1, "rgba", "lsb", "xy"),
             (1, "rgb", "lsb", "xy"),
             (1, "r", "lsb", "xy"),
@@ -427,7 +754,21 @@ class PNGStegoDetector:
             (1, "bgr", "lsb", "xy"),
             (2, "rgba", "lsb", "xy"),
             (2, "rgb", "lsb", "xy"),
-            # MSB tests
+            
+            # LSB tests - yx order (column-major: top-to-bottom, left-to-right)
+            (1, "rgba", "lsb", "yx"),
+            (1, "rgb", "lsb", "yx"),
+            (1, "b", "lsb", "yx"),
+            
+            # LSB tests - XY order (reversed horizontal: right-to-left, top-to-bottom)
+            (1, "rgba", "lsb", "XY"),
+            (1, "rgb", "lsb", "XY"),
+            
+            # LSB tests - YX order (reversed vertical: bottom-to-top, left-to-right)
+            (1, "rgba", "lsb", "YX"),
+            (1, "rgb", "lsb", "YX"),
+            
+            # MSB tests - xy order
             (1, "rgba", "msb", "xy"),
             (1, "rgb", "msb", "xy"),
             (1, "r", "msb", "xy"),
@@ -436,11 +777,21 @@ class PNGStegoDetector:
             (1, "a", "msb", "xy"),
             (2, "rgba", "msb", "xy"),
             (2, "rgb", "msb", "xy"),
+            
+            # MSB tests - yx order
+            (1, "rgba", "msb", "yx"),
+            (1, "rgb", "msb", "yx"),
         ]
         
+        width = png_info.get('width', 0)
+        height = png_info.get('height', 0)
+        
         for bits, channels, bit_order, px_order in test_configs:
+            # Reorder pixels according to pixel order
+            reordered_pixels = self.reorder_pixels(image_data, width, height, px_order)
+            
             # Extract bits from specific color channels
-            channel_bits = self.extract_channel_bits(image_data, channels, bits, bit_order)
+            channel_bits = self.extract_channel_bits(reordered_pixels, channels, bits, bit_order)
             
             # Pack bits into bytes
             extracted = self.extractor.pack_bits(channel_bits)

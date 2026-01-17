@@ -729,7 +729,12 @@ class Analyzer:
         embedded_objects = []
         if self.embedded_detector:
             try:
-                embedded_objects = self.embedded_detector.detect_embedded(data, min_confidence=0.70)
+                # Use higher confidence threshold and pass parent format for exclusion rules
+                embedded_objects = self.embedded_detector.detect_embedded(
+                    data, 
+                    min_confidence=0.80,  # Raised from 0.70 to reduce false positives
+                    parent_format=primary_format
+                )
                 
                 if primary_format in ['pe', 'elf', 'zip']:
                     overlay = self.embedded_detector.detect_overlay(data, primary_format)

@@ -1,45 +1,48 @@
 # Steganography Detection 🔍🔐
 
-**Advanced steganographic data detection and extraction for digital forensics**
+**zsteg-compatible steganographic data detection and extraction for CTF challenges**
 
-Filo's steganography detection module provides comprehensive analysis of hidden data in various file formats, using techniques compatible with industry-standard tools like `zsteg`.
+Filo's steganography detection module provides comprehensive LSB/MSB analysis with exact algorithm compatibility with the industry-standard `zsteg` tool, plus automatic base64 decoding and enhanced file type detection.
 
 ---
 
 ## 🎯 Overview
 
-Steganography is the practice of concealing data within other non-secret files or messages. Attackers use it for:
+Steganography is the practice of concealing data within other non-secret files or messages. Common in CTF challenges and real-world attacks:
 
+- **CTF Challenges**: picoCTF, HackTheBox, and other competitions frequently use LSB steganography
 - **Data Exfiltration**: Smuggling sensitive data out of networks
 - **Malware Delivery**: Hiding malicious payloads in innocent-looking files
 - **Covert Communication**: Secret messaging channels
-- **CTF Challenges**: Capture The Flag competitions often use stego techniques
 
-Filo detects and extracts hidden data using multiple sophisticated techniques.
+Filo detects and extracts hidden data using zsteg-compatible algorithms plus enhancements like automatic base64 decoding.
 
 ---
 
 ## 🔧 Supported Techniques
 
-### 1. LSB Analysis (Least Significant Bit)
+### 1. LSB/MSB Analysis (zsteg-compatible)
 
 **Format Support**: PNG, BMP
 
-LSB steganography hides data in the least significant bits of pixel values - the most common image steganography technique.
+LSB/MSB steganography hides data in the least/most significant bits of pixel values - the most common image steganography technique. Filo implements the exact same extraction algorithm as zsteg.
 
 **Detection Methods**:
-- ✅ **1-8 bit planes** per channel extraction
-- ✅ **Multiple channel combinations** (R, G, B, A, RGB, RGBA, BGR, etc.)
-- ✅ **Bit order variants** (LSB-first, MSB-first)
-- ✅ **Pixel order variants** (XY, YX, XY-reverse, YX-reverse)
-- ✅ **zsteg-compatible** algorithm (exact bit extraction matching)
+- ✅ **Multi-bit extraction**: 1, 2, 4 bits per channel (b1, b2, b4)
+- ✅ **60+ bit plane configurations** tested per image
+- ✅ **Channel combinations**: rgb, rgba, bgr, abgr, individual r/g/b/a channels
+- ✅ **Bit order variants**: LSB (least significant) and MSB (most significant)
+- ✅ **Pixel order variants**: xy (row-major), yx (column-major), XY (reversed horizontal), YX (reversed vertical)
+- ✅ **zsteg algorithm compatibility**: Byte-for-byte identical extraction
+- ✅ **Base64 auto-detection**: Automatically decodes base64 payloads (improvement over zsteg!)
 
 **What It Detects**:
+- CTF flags (picoCTF{...}, flag{...}, HTB{...}, etc.) - highlighted in bright green
 - ASCII/UTF-8 text strings
-- CTF flags (picoCTF{...}, flag{...}, HTB{...}, etc.)
+- Base64 encoded payloads (auto-decoded to show actual content)
+- File signatures (Targa, Alliant, Applesoft BASIC, OpenPGP keys)
 - zlib compressed data
-- Base64 encoded payloads
-- Binary file signatures
+- Binary file headers
 
 ### 2. Trailing Data Detection
 
@@ -103,23 +106,32 @@ filo stego document.pdf
 filo stego image.png --all
 ```
 
-### Example Output
+### Example Output (zsteg-style)
 
 ```bash
-$ filo stego challenge.png
+$ filo stego pico.flag.png
 
 ╭──────────────────────────────────────────────╮
-│ Steganography Analysis: challenge.png        │
+│ Steganography Analysis: pico.flag.png        │
 ╰──────────────────────────────────────────────╯
 
-Found 5 results:
+Found 9 results:
 
-b1,rgba,lsb,xy                .. text: "picoCTF{h1dd3n_1n_p1x3ls}"
-b1,rgb,lsb,xy                 .. text: "hidden message in RGB channels"
-b2,rgba,lsb,xy                .. zlib compressed data (245 bytes)
-b1,b,lsb,xy                   .. text: "SECRET"
-trailing_data,png             .. PNG has 1024 bytes after IEND chunk
+b1,rgb,lsb,xy          .. text: "picoCTF{7h3r3_15_n0_5p00n_a9a181eb}"
+b1,bgr,lsb,xy          .. text: "\nVnWUQ1Y"
+b4,r,lsb,xy            .. file: Applesoft BASIC program data, first line number 257
+b4,g,lsb,xy            .. file: Applesoft BASIC program data, first line number 1
+b1,rgba,lsb,xy         .. text: "UfUUUU@UU"
+b4,b,lsb,xy            .. file: Applesoft BASIC program data, first line number 16
+b4,rgb,lsb,xy          .. file: Targa image data - Map (246-257) 65297 x 65314 x 1 +2817 +2570
+b1,bgr,msb,xy          .. text: "AAPAAP"
+b1,rgba,msb,xy         .. text: "wwwwww"
+
+Tip: Use --extract=METHOD to extract specific data
+Example: filo stego pico.flag.png --extract="b1,rgb,lsb,xy" -o flag.txt
 ```
+
+**Filo Advantage**: In the example above, if the flag was base64-encoded, Filo would automatically decode it and show the decoded flag directly (unlike zsteg which shows raw base64).
 
 ### Extracting Specific Data
 
@@ -138,41 +150,46 @@ filo stego image.png --extract="b1,rgb,msb,xy" -o msb_data.bin
 
 ## 📊 Detection Methods Explained
 
-### LSB Method Notation
+### LSB/MSB Method Notation (zsteg-compatible)
 
 Format: `b{bits},{channels},{order},{pixel_order}`
 
 **Components**:
-- **bits**: Number of bits per byte (1-8)
-  - `b1` = 1 bit per byte (most common)
-  - `b2` = 2 bits per byte
-  - `b8` = All 8 bits (full byte)
+- **bits**: Number of bits per channel
+  - `b1` = 1 bit per channel (most common - tested for all combinations)
+  - `b2` = 2 bits per channel (nibble extraction)
+  - `b4` = 4 bits per channel (half-byte extraction)
+  - *(b8 = full byte, not typically used for stego)*
 
-- **channels**: Which color channels to use
-  - `r`, `g`, `b`, `a` = Individual channels
-  - `rgb` = Red, Green, Blue combined
+- **channels**: Which color channels to extract from
+  - `r`, `g`, `b`, `a` = Individual channels (red/green/blue/alpha)
+  - `rgb` = Red, Green, Blue combined in sequence
   - `rgba` = All channels including Alpha
-  - `bgr` = Blue, Green, Red (BMP order)
+  - `bgr` = Blue, Green, Red (BMP native order)
+  - `abgr` = Alpha, Blue, Green, Red
 
-- **order**: Bit extraction order
-  - `lsb` = Least Significant Bit first (bit 0)
-  - `msb` = Most Significant Bit first (bit 7)
+- **order**: Bit extraction order within each byte
+  - `lsb` = Least Significant Bit first (bit 0, most common)
+  - `msb` = Most Significant Bit first (bit 7, less common)
 
-- **pixel_order**: Pixel traversal order
-  - `xy` = Left-to-right, top-to-bottom (standard)
-  - `yx` = Top-to-bottom, left-to-right
-  - `XY` = Right-to-left, top-to-bottom
-  - `YX` = Bottom-to-top, left-to-right
+- **pixel_order**: Pixel traversal pattern
+  - `xy` = Left-to-right, top-to-bottom (standard row-major)
+  - `yx` = Top-to-bottom, left-to-right (column-major)
+  - `XY` = Right-to-left, top-to-bottom (reversed horizontal)
+  - `YX` = Bottom-to-top, left-to-right (reversed vertical)
 
 ### Common Configurations
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
-| `b1,rgba,lsb,xy` | Standard LSB in all channels | Most common stego |
-| `b1,b,lsb,xy` | LSB in blue channel only | Blue channel hiding |
-| `b1,rgb,lsb,xy` | LSB in RGB (no alpha) | Opaque images |
-| `b2,rgba,lsb,xy` | 2 bits per byte | Higher capacity |
-| `b1,rgba,msb,xy` | MSB instead of LSB | Less common variant |
+| `b1,rgba,lsb,xy` | Standard 1-bit LSB in all channels | Most common CTF stego |
+| `b1,rgb,lsb,xy` | 1-bit LSB in RGB (no alpha) | Opaque images, typical picoCTF |
+| `b1,b,lsb,xy` | 1-bit LSB in blue channel only | Single-channel hiding |
+| `b2,rgba,lsb,xy` | 2-bit LSB per channel | Higher capacity stego |
+| `b1,rgba,msb,xy` | 1-bit MSB instead of LSB | Less common variant |
+| `b4,r,lsb,xy` | 4-bit LSB in red channel | Often detects file signatures |
+
+**Total configurations tested**: 60+ per image (all combinations of bits × channels × order × pixel_order)
 
 ---
 

@@ -30,6 +30,17 @@ class EmbeddedDetector:
     detects overlays, and identifies polyglot files.
     """
     
+    # Format exclusion rules: formats to skip when inside certain parent formats
+    EXCLUSION_RULES = {
+        'elf': {'wasm', 'ico', 'text', 'markdown'},  # ELF binaries have random byte patterns
+        'pe': {'wasm', 'ico', 'text', 'markdown'},   # PE executables have random byte patterns
+        'dll': {'wasm', 'ico', 'text', 'markdown'},
+        'class': {'wasm', 'ico', 'text'},            # Java bytecode
+        'dex': {'wasm', 'ico', 'text'},              # Android DEX files
+        'text': {'text', 'markdown'},                # Don't report text inside text
+        'markdown': {'text', 'markdown'},
+    }
+    
     def __init__(self, formats_db: Optional[FormatDatabase] = None):
         """
         Initialize embedded object detector.
@@ -42,8 +53,9 @@ class EmbeddedDetector:
     def detect_embedded(
         self, 
         data: bytes, 
-        min_confidence: float = 0.70,
-        skip_primary: bool = True
+        min_confidence: float = 0.75,
+        skip_primary: bool = True,
+        parent_format: Optional[str] = None
     ) -> list[EmbeddedObject]:
         """
         Detect all embedded objects in binary data.
@@ -67,6 +79,11 @@ class EmbeddedDetector:
             if not spec or not spec.signatures:
                 continue
             
+            # Skip formats excluded for this parent format
+            if parent_format and parent_format in self.EXCLUSION_RULES:
+                if format_name in self.EXCLUSION_RULES[parent_format]:
+                    continue
+            
             # Check each signature
             for sig_spec in spec.signatures:
                 if not sig_spec.hex:
@@ -86,15 +103,21 @@ class EmbeddedDetector:
                         offset += 1
                         continue
                     
+                    # Estimate size first (needed for validation)
+                    size = self._estimate_size(data, offset, spec)
+                    
+                    # Skip if insufficient data remaining
+                    min_size = self._get_minimum_size(spec)
+                    if len(data) - offset < min_size:
+                        offset += 1
+                        continue
+                    
                     # Calculate confidence based on signature quality
                     confidence = self._calculate_confidence(
-                        data, offset, spec, sig_spec
+                        data, offset, spec, sig_spec, size
                     )
                     
                     if confidence >= min_confidence:
-                        # Estimate size if possible
-                        size = self._estimate_size(data, offset, spec)
-                        
                         # Extract data snippet for verification
                         snippet = data[offset:offset + 16]
                         
@@ -181,7 +204,8 @@ class EmbeddedDetector:
         data: bytes, 
         offset: int, 
         spec: FormatSpec, 
-        sig_spec
+        sig_spec,
+        size: Optional[int] = None
     ) -> float:
         """
         Calculate confidence for embedded object detection.
@@ -190,12 +214,15 @@ class EmbeddedDetector:
         - Signature strength (length, uniqueness)
         - Structural validation (if available)
         - Context (alignment, surrounding data)
+        - Size reasonableness
         """
         confidence = 0.70  # Base confidence for signature match
         
         # Boost for longer signatures
         magic_bytes = bytes.fromhex(sig_spec.hex.replace(" ", ""))
         if len(magic_bytes) >= 8:
+            confidence += 0.15
+        elif len(magic_bytes) >= 6:
             confidence += 0.10
         elif len(magic_bytes) >= 4:
             confidence += 0.05
@@ -205,6 +232,14 @@ class EmbeddedDetector:
             confidence += 0.05
         elif offset % 16 == 0:
             confidence += 0.02
+        
+        # Penalize very short signatures (2-3 bytes) - too many false positives
+        if len(magic_bytes) <= 3:
+            confidence -= 0.15
+        
+        # Boost if size is known and reasonable
+        if size and 512 <= size <= 10_000_000:  # Between 512 bytes and 10MB
+            confidence += 0.05
         
         # Validate structure if possible
         if spec.format == "zip":
@@ -327,6 +362,30 @@ class EmbeddedDetector:
         
         # Default: unknown size
         return None
+    
+    def _get_minimum_size(self, spec: FormatSpec) -> int:
+        """
+        Get minimum valid size for a format.
+        
+        Helps filter out false positives where signature appears
+        but there's insufficient data for a valid file.
+        """
+        min_sizes = {
+            'zip': 30,      # Local file header minimum
+            'png': 57,      # Signature + IHDR + IEND minimum
+            'jpeg': 128,    # Reasonable JPEG minimum
+            'pdf': 256,     # Minimal PDF structure
+            'pe': 512,      # PE header + minimal code
+            'elf': 52,      # ELF header minimum (32-bit)
+            'gif': 800,     # GIF header + minimal image data
+            'bmp': 54,      # BMP header minimum
+            'wasm': 8,      # WASM header (often false positive)
+            'ico': 22,      # ICO header (often false positive)
+            'text': 20,     # Reasonable text minimum
+            'markdown': 20,
+        }
+        
+        return min_sizes.get(spec.format, 16)  # Default 16 bytes
     
     def _get_logical_eof(self, data: bytes, spec: FormatSpec) -> Optional[int]:
         """

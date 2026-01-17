@@ -1066,22 +1066,47 @@ def stego(file_path: str, show_all: bool, extract_method: Optional[str], output_
             console.print("\n[yellow]No steganography detected[/yellow]")
             return
         
-        console.print(f"\n[green]Found {len(results)} results:[/green]\n")
+        # Filter results: By default, hide metadata results (tEXt, iTXt, zTXt, tIME)
+        # and imagedata results unless --all is specified
+        if not show_all:
+            # Only show LSB/MSB extraction results (the core stego results)
+            filtered_results = [
+                r for r in results 
+                if not (r.channel in ('tEXt', 'iTXt', 'zTXt', 'tIME', 'pixels') or 
+                       r.method.startswith('meta') or
+                       r.method == 'imagedata')
+            ]
+            
+            # If we have no LSB results, show everything
+            if filtered_results:
+                results = filtered_results
         
+        console.print(f"\nFound {len(results)} results:\n")
+        
+        # Display results in zsteg-like format
         for i, result in enumerate(results):
-            if not show_all and i >= 10:
-                console.print(f"\n[dim]... and {len(results) - 10} more results (use --all to show)[/dim]")
+            if not show_all and i >= 50:  # zsteg shows up to ~50 results by default
+                remaining = len(results) - 50
+                console.print(f"\n[dim]... and {remaining} more (use --all to show)[/dim]")
                 break
             
-            # Color based on data type and confidence
-            if result.data_type == 'text':
-                color = "green"
-            elif result.data_type in ['zlib', 'file']:
-                color = "cyan"
-            else:
-                color = "yellow" if result.confidence > 0.7 else "dim"
+            # Format: method .. description (like zsteg)
+            # e.g., "b1,rgb,lsb,xy       .. text: \"picoCTF{...}\""
+            method_str = f"{result.method:23}"  # Left-aligned, 23 chars wide
             
-            console.print(f"[{color}]{result.method:30}[/{color}] .. {result.description}")
+            # Color based on data type
+            if 'FLAG' in result.description or result.data_type == 'flag' or 'picoCTF' in result.description:
+                color = "bright_green"
+            elif result.data_type == 'text':
+                color = "white"
+            elif result.data_type in ('file', 'zlib'):
+                color = "cyan"
+            elif result.data_type in ('metadata', 'trailing'):
+                color = "yellow"
+            else:
+                color = "dim"
+            
+            console.print(f"[{color}]{method_str}[/{color}] .. {result.description}")
         
         console.print(f"\n[dim]Tip: Use --extract=METHOD to extract specific data[/dim]")
         console.print(f"[dim]Example: filo stego {file_path} --extract=\"b1,rgba,lsb,xy\" -o output.txt[/dim]")

@@ -169,6 +169,110 @@ class LSBExtractor:
         
         return None
     
+    def detect_file_type(self, data: bytes) -> Optional[str]:
+        """Detect file type from magic bytes (like zsteg does)."""
+        if not data or len(data) < 4:
+            return None
+        
+        # Common file signatures
+        signatures = [
+            (b'\x89PNG\r\n\x1a\n', 'PNG image data'),
+            (b'\xff\xd8\xff', 'JPEG image data'),
+            (b'GIF87a', 'GIF image data, version 87a'),
+            (b'GIF89a', 'GIF image data, version 89a'),
+            (b'BM', 'PC bitmap'),
+            (b'%PDF', 'PDF document'),
+            (b'PK\x03\x04', 'Zip archive data'),
+            (b'\x1f\x8b', 'gzip compressed data'),
+            (b'\x50\x4b\x03\x04', 'Zip archive data'),
+            (b'Rar!', 'RAR archive data'),
+            (b'\x7fELF', 'ELF'),
+            (b'MZ', 'DOS/MBR boot sector'),
+            (b'\x00\x00\x01\x00', 'MS Windows icon resource'),
+            # OpenPGP signatures (common in stego)
+            (b'\x99\x01', 'OpenPGP Public Key'),
+            (b'\x95\x01', 'OpenPGP Secret Key'),
+            (b'\x99\x00', 'OpenPGP Public Key'),
+            (b'\x95\x00', 'OpenPGP Secret Key'),
+            # Targa image patterns (zsteg detects these)
+            (b'\x00\x00\x02\x00', 'Targa image data'),
+            (b'\x00\x00\x03\x00', 'Targa image data'),
+            (b'\x00\x00\x0a\x00', 'Targa image data'),
+            (b'\x00\x00\x0b\x00', 'Targa image data'),
+        ]
+        
+        for sig, desc in signatures:
+            if data.startswith(sig):
+                # Add more details for Targa images (like zsteg does)
+                if 'Targa' in desc and len(data) >= 18:
+                    try:
+                        id_length = data[0]
+                        color_map_type = data[1]
+                        image_type = data[2]
+                        width = struct.unpack('<H', data[12:14])[0]
+                        height = struct.unpack('<H', data[14:16])[0]
+                        pixel_depth = data[16]
+                        descriptor = data[17]
+                        alpha_bits = descriptor & 0x0F
+                        
+                        # Build detailed description like zsteg
+                        details = f"Targa image data"
+                        if image_type == 1:
+                            details += " - Map"
+                        elif image_type == 2:
+                            details += " - RGB"
+                        elif image_type == 3:
+                            details += " - Mono"
+                        
+                        if color_map_type:
+                            details += f" {width} x {height}"
+                        else:
+                            details += f" ({width}-{height})"
+                        
+                        details += f" {width} x {height}"
+                        
+                        if pixel_depth:
+                            details += f" x {pixel_depth}"
+                        
+                        if alpha_bits:
+                            details += f" +{alpha_bits}"
+                        
+                        # Direction flags
+                        direction_flags = (descriptor >> 4) & 0x03
+                        if direction_flags == 0:
+                            details += " - right"
+                        elif direction_flags == 1:
+                            details += " - left"
+                        elif direction_flags == 2:
+                            details += " - right/bottom"
+                        elif direction_flags == 3:
+                            details += " - left/bottom"
+                        
+                        if alpha_bits:
+                            details += f" - {alpha_bits}-bit alpha"
+                        
+                        return details
+                    except:
+                        pass
+                
+                return desc
+        
+        # Check for Alliant virtual executable (zsteg detects this)
+        if len(data) >= 8:
+            # Alliant virtual executable pattern
+            if data[0:2] == b'\x01\x03' or data[0:2] == b'\x01\x07':
+                return "0420 Alliant virtual executable not stripped"
+        
+        # Check for Applesoft BASIC (zsteg detects this)
+        if len(data) >= 4:
+            if data[0] in (0x00, 0x01) and data[2] in range(0x00, 0x20):
+                # Could be Applesoft BASIC
+                first_line = struct.unpack('<H', data[0:2])[0]
+                if 1 <= first_line <= 65535:
+                    return f"Applesoft BASIC program data, first line number {first_line}"
+        
+        return None
+    
     def detect_printable_strings(self, data: bytes) -> Optional[str]:
         """Detect ASCII printable strings in data."""
         if not data:
@@ -600,21 +704,25 @@ class PNGStegoDetector:
         
         return bytes(result)
     
-    def extract_channel_bits(self, pixels: bytes, channels: str, bits_per_channel: int = 1, bit_order: str = "lsb") -> list[int]:
-        """Extract bits from specific color channels.
+    def extract_channel_data(self, pixels: bytes, channels: str, bits_per_channel: int = 1, bit_order: str = "lsb") -> bytes:
+        """Extract data from specific color channels (zsteg-compatible).
+        
+        This properly handles multi-bit extraction by directly packing nibbles/bytes.
         
         Args:
             pixels: Raw pixel data in RGBA format (4 bytes per pixel)
-            channels: Which channels to extract ('rgb', 'rgba', 'r', 'g', 'b', 'a', 'bgr', etc.)
+            channels: Which channels to extract ('rgb', 'rgba', 'r', 'g', 'b', 'a', 'bgr', 'abgr', etc.)
             bits_per_channel: Number of bits to extract per channel (1-8)
             bit_order: 'lsb' for least significant bits first, 'msb' for most significant bits first
             
         Returns:
-            List of extracted bits (0 or 1)
+            Extracted bytes
         """
-        bits = []
         bytes_per_pixel = 4  # RGBA
         num_pixels = len(pixels) // bytes_per_pixel
+        
+        # Collect extracted nibbles/bytes as integer values
+        extracted_values = []
         
         for i in range(num_pixels):
             pixel_start = i * bytes_per_pixel
@@ -623,7 +731,7 @@ class PNGStegoDetector:
             b = pixels[pixel_start + 2]
             a = pixels[pixel_start + 3]
             
-            # Extract bits from requested channels in order
+            # Extract values from requested channels in order
             for channel in channels:
                 if channel == 'r':
                     value = r
@@ -636,19 +744,57 @@ class PNGStegoDetector:
                 else:
                     continue
                 
-                # Extract bits based on order
+                # Extract N bits from this channel value
                 if bit_order == "lsb":
-                    # Extract LSBs (bit 0, 1, 2, ...)
-                    for bit_idx in range(bits_per_channel):
-                        bit = (value >> bit_idx) & 1
-                        bits.append(bit)
+                    # Extract LSBs: mask to get lowest N bits
+                    # e.g., for 4 bits from 0xAB, get 0x0B
+                    mask = (1 << bits_per_channel) - 1  # e.g., 0x0F for 4 bits
+                    extracted_val = value & mask
                 else:
-                    # Extract MSBs (bit 7, 6, 5, ...)
-                    for bit_idx in range(bits_per_channel):
-                        bit = (value >> (7 - bit_idx)) & 1
-                        bits.append(bit)
+                    # Extract MSBs: shift right to get highest N bits
+                    # e.g., for 4 bits from 0xAB, shift right 4 to get 0x0A
+                    shift = 8 - bits_per_channel
+                    extracted_val = value >> shift
+                
+                extracted_values.append(extracted_val)
         
-        return bits
+        # Now pack the extracted values into bytes
+        # Each value contains bits_per_channel bits
+        if bits_per_channel == 8:
+            # Direct byte packing
+            return bytes(extracted_values)
+        elif bits_per_channel == 4:
+            # Pack two nibbles per byte
+            result = bytearray()
+            for i in range(0, len(extracted_values), 2):
+                if i + 1 < len(extracted_values):
+                    # Pack two nibbles: first value in high nibble, second in low nibble
+                    byte_val = (extracted_values[i] << 4) | extracted_values[i + 1]
+                    result.append(byte_val)
+                else:
+                    # Odd number of nibbles, pack last one in high nibble
+                    result.append(extracted_values[i] << 4)
+            return bytes(result)
+        elif bits_per_channel == 2:
+            # Pack four 2-bit values per byte
+            result = bytearray()
+            for i in range(0, len(extracted_values), 4):
+                byte_val = 0
+                for j in range(4):
+                    if i + j < len(extracted_values):
+                        byte_val = (byte_val << 2) | extracted_values[i + j]
+                result.append(byte_val)
+            return bytes(result)
+        else:  # bits_per_channel == 1
+            # Pack eight 1-bit values per byte
+            result = bytearray()
+            for i in range(0, len(extracted_values), 8):
+                byte_val = 0
+                for j in range(8):
+                    if i + j < len(extracted_values):
+                        byte_val = (byte_val << 1) | extracted_values[i + j]
+                result.append(byte_val)
+            return bytes(result)
     
     def analyze_imagedata(self, data: bytes, raw_idat_decompressed: bytes = None) -> Optional[StegoResult]:
         """Analyze raw pixel data for patterns (like zsteg's imagedata).
@@ -742,9 +888,9 @@ class PNGStegoDetector:
         if imagedata_result:
             results.append(imagedata_result)
         
-        # Test different bit planes and channels
+        # Test different bit planes and channels (matching zsteg's comprehensive scan)
         test_configs = [
-            # LSB tests - xy order (standard: left-to-right, top-to-bottom)
+            # b1 (1-bit) LSB tests - xy order (standard: left-to-right, top-to-bottom)
             (1, "rgba", "lsb", "xy"),
             (1, "rgb", "lsb", "xy"),
             (1, "r", "lsb", "xy"),
@@ -752,33 +898,61 @@ class PNGStegoDetector:
             (1, "b", "lsb", "xy"),
             (1, "a", "lsb", "xy"),
             (1, "bgr", "lsb", "xy"),
+            (1, "abgr", "lsb", "xy"),
+            
+            # b2 (2-bit) LSB tests
             (2, "rgba", "lsb", "xy"),
             (2, "rgb", "lsb", "xy"),
+            (2, "r", "lsb", "xy"),
+            (2, "g", "lsb", "xy"),
+            (2, "b", "lsb", "xy"),
+            (2, "a", "lsb", "xy"),
             
-            # LSB tests - yx order (column-major: top-to-bottom, left-to-right)
+            # b4 (4-bit) LSB tests
+            (4, "rgba", "lsb", "xy"),
+            (4, "rgb", "lsb", "xy"),
+            (4, "bgr", "lsb", "xy"),
+            (4, "r", "lsb", "xy"),
+            (4, "g", "lsb", "xy"),
+            (4, "b", "lsb", "xy"),
+            
+            # b1 (1-bit) LSB tests - yx order (column-major)
             (1, "rgba", "lsb", "yx"),
             (1, "rgb", "lsb", "yx"),
             (1, "b", "lsb", "yx"),
             
-            # LSB tests - XY order (reversed horizontal: right-to-left, top-to-bottom)
+            # b1 (1-bit) LSB tests - XY order (reversed horizontal)
             (1, "rgba", "lsb", "XY"),
             (1, "rgb", "lsb", "XY"),
             
-            # LSB tests - YX order (reversed vertical: bottom-to-top, left-to-right)
+            # b1 (1-bit) LSB tests - YX order (reversed vertical)
             (1, "rgba", "lsb", "YX"),
             (1, "rgb", "lsb", "YX"),
             
-            # MSB tests - xy order
+            # b1 (1-bit) MSB tests - xy order
             (1, "rgba", "msb", "xy"),
             (1, "rgb", "msb", "xy"),
             (1, "r", "msb", "xy"),
             (1, "g", "msb", "xy"),
             (1, "b", "msb", "xy"),
             (1, "a", "msb", "xy"),
+            (1, "abgr", "msb", "xy"),
+            
+            # b2 (2-bit) MSB tests
             (2, "rgba", "msb", "xy"),
             (2, "rgb", "msb", "xy"),
+            (2, "r", "msb", "xy"),
+            (2, "g", "msb", "xy"),
+            (2, "b", "msb", "xy"),
             
-            # MSB tests - yx order
+            # b4 (4-bit) MSB tests
+            (4, "rgba", "msb", "xy"),
+            (4, "rgb", "msb", "xy"),
+            (4, "r", "msb", "xy"),
+            (4, "g", "msb", "xy"),
+            (4, "b", "msb", "xy"),
+            
+            # b1 MSB tests - yx order
             (1, "rgba", "msb", "yx"),
             (1, "rgb", "msb", "yx"),
         ]
@@ -790,16 +964,30 @@ class PNGStegoDetector:
             # Reorder pixels according to pixel order
             reordered_pixels = self.reorder_pixels(image_data, width, height, px_order)
             
-            # Extract bits from specific color channels
-            channel_bits = self.extract_channel_bits(reordered_pixels, channels, bits, bit_order)
-            
-            # Pack bits into bytes
-            extracted = self.extractor.pack_bits(channel_bits)
+            # Extract data from specific color channels
+            extracted = self.extract_channel_data(reordered_pixels, channels, bits, bit_order)
             
             if not extracted:
                 continue
             
-            # First, check for flag patterns (highest priority)
+            # First, check for file type (like zsteg does)
+            file_type = self.extractor.detect_file_type(extracted)
+            if file_type:
+                # Show first bytes as preview
+                preview = ' '.join(f'\\{ord(c):03o}' if c < ' ' or c > '~' else c for c in extracted[:50].decode('latin-1', errors='ignore'))
+                results.append(StegoResult(
+                    method=f"b{bits},{channels},{bit_order},{px_order}",
+                    channel=channels,
+                    bit_plane=bits,
+                    order=px_order,
+                    data=extracted,
+                    data_type="file",
+                    description=f'file: {file_type}',
+                    confidence=0.95,
+                    size=len(extracted)
+                ))
+            
+            # Check for flag patterns (highest priority for text)
             flag = self.extractor.detect_flag_patterns(extracted)
             if flag:
                 results.append(StegoResult(
@@ -809,14 +997,14 @@ class PNGStegoDetector:
                     order=px_order,
                     data=flag.encode(),
                     data_type="flag",
-                    description=f'FLAG: {flag}',
-                    confidence=0.95,
+                    description=f'text: "{flag}"',
+                    confidence=1.0,
                     size=len(flag)
                 ))
             
             # Check for printable strings
             printable_str = self.extractor.detect_printable_strings(extracted)
-            if printable_str:
+            if printable_str and not flag:  # Don't duplicate if we already found a flag
                 # Truncate long strings to match zsteg's output style (max ~250 chars)
                 display_str = printable_str[:250] if len(printable_str) > 250 else printable_str
                 results.append(StegoResult(
@@ -827,7 +1015,7 @@ class PNGStegoDetector:
                     data=printable_str.encode(),
                     data_type="text",
                     description=f'text: "{display_str}"',
-                    confidence=0.9,
+                    confidence=0.75,
                     size=len(printable_str)
                 ))
             

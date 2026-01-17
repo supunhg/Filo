@@ -5,6 +5,25 @@ All notable changes to Filo Forensics will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-01-17
+
+### Added
+- **Steganography**: Complete zsteg-compatible LSB/MSB extraction
+  - 60+ bit plane configurations (b1/b2/b4 × rgb/rgba/bgr/abgr × lsb/msb × xy/yx/XY/YX)
+  - Multi-bit extraction for 2-bit and 4-bit channels
+  - File type detection (Targa, Alliant, Applesoft BASIC, OpenPGP)
+  - Base64 auto-detection and decoding (improvement over zsteg)
+  - CLI output formatting matching zsteg style
+
+### Changed
+- **Dependencies**: Added Pillow>=10.0.0 for image steganography analysis
+- **Stego CLI**: Results filtered by default (use --all for metadata)
+- Flag detection now highlights in bright green
+
+### Fixed
+- Multi-bit LSB/MSB extraction now correctly packs nibbles and bytes
+- Bit extraction order matches zsteg algorithm exactly
+
 ## [0.2.6] - 2026-01-15
 
 ### Fixed

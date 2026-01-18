@@ -49,6 +49,7 @@ repaired/
 *.filo-backup
 filo_evidence/
 models/learned_patterns.pkl
+ARCHITECTURE.md
 
 # Build artifacts
 *.deb

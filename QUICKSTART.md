@@ -1,8 +1,10 @@
-# Filo Quick Start Guide (v0.2.6)
+# Filo Quick Start Guide (v0.2.7)
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-> ✨ **New in v0.2.6**: Steganography detection (LSB/MSB analysis, PDF metadata, trailing data) and PCAP network analysis. See sections 9-10 below.
+> ✨ **New in v0.2.7**: zsteg-compatible LSB/MSB steganography detection with automatic base64 decoding! Perfect for CTF challenges.
+> 
+> **Also in v0.2.6**: PCAP network analysis for quick flag hunting in packet captures.
 
 ## Installation
 
@@ -365,7 +367,7 @@ Method: b1,r,msb,xy
 - Automatic CTF flag pattern detection
 - Base64 and zlib decompression
 
-## 10. PCAP Network Analysis (NEW v0.2.6)
+## 10. PCAP Network Analysis (v0.2.6)
 
 Quick triage for network capture files:
 
@@ -419,12 +421,15 @@ filo pcap dump.pcapng
 - Automatic strategy selection
 - Safe backup creation
 
-✅ **Steganography**
-- LSB/MSB extraction (PNG, BMP)
+✅ **Steganography (v0.2.7)**
+- zsteg-compatible LSB/MSB extraction (PNG, BMP)
+- 60+ bit plane configurations
+- Automatic base64 decoding
+- File type detection (OpenPGP, Targa, Applesoft BASIC)
 - PDF metadata extraction
 - Trailing data detection (JPEG, PNG, PDF, GIF)
 - Flag pattern recognition (picoCTF{}, flag{}, HTB{})
-- Base64/zlib auto-decoding
+- Smart result filtering
 
 ✅ **Network Forensics**
 - PCAP/PCAPNG parsing

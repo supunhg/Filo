@@ -5,11 +5,12 @@ from typing import Optional, Union
 import mmap
 
 from filo.formats import FormatDatabase
-from filo.models import AnalysisResult, DetectionResult, ConfidenceContribution, Fingerprint
+from filo.models import AnalysisResult, DetectionResult, ConfidenceContribution, Fingerprint, ArchitectureInfo
 from filo.contradictions import ContradictionDetector
 from filo.embedded import EmbeddedDetector
 from filo.fingerprint import ToolFingerprinter
 from filo.polyglot import PolyglotDetector
+from filo.architecture import ArchitectureDetector
 
 logger = logging.getLogger(__name__)
 
@@ -766,6 +767,18 @@ class Analyzer:
             except Exception as e:
                 logger.debug(f"Polyglot detection failed: {e}")
         
+        # Detect CPU architecture for executable formats
+        architecture = None
+        if primary_format in ['elf', 'exe', 'dll', 'macho']:
+            try:
+                arch_detector = ArchitectureDetector()
+                arch_info = arch_detector.detect(data)
+                if arch_info:
+                    architecture = ArchitectureInfo(**arch_info)
+                    logger.info(f"Detected architecture: {arch_info['architecture']} ({arch_info['bits']})")
+            except Exception as e:
+                logger.debug(f"Architecture detection failed: {e}")
+        
         return AnalysisResult(
             primary_format=primary_format,
             confidence=confidence,
@@ -775,6 +788,7 @@ class Analyzer:
             embedded_objects=embedded_objects,
             fingerprints=fingerprints,
             polyglots=polyglots,
+            architecture=architecture,
             file_size=len(data),
             entropy=entropy,
             checksum_sha256=checksum,

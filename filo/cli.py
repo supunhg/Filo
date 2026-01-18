@@ -318,6 +318,13 @@ def analyze(file_path: str, output_json: bool, deep: bool, no_ml: bool, all_evid
                     console.print(f"    [dim]Risk: [{risk_color}]{poly.risk_level.upper()}[/{risk_color}] | Pattern: {poly.pattern}[/dim]")
                     console.print(f"    [dim]{poly.evidence}[/dim]")
             
+            # CPU Architecture (for executable files)
+            if result.architecture:
+                console.print(f"\n[bold cyan]🖥️  CPU Architecture:[/bold cyan]")
+                arch = result.architecture
+                console.print(f"  • [green]{arch.architecture}[/green] ({arch.bits}, {arch.endian})")
+                console.print(f"    [dim]Format: {arch.format} | Machine Code: 0x{arch.machine_code:04X}[/dim]")
+            
             # File info
             console.print(f"\n[bold]File Size:[/bold] {result.file_size:,} bytes")
             if result.entropy is not None:

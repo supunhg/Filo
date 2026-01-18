@@ -50,6 +50,7 @@ repaired/
 filo_evidence/
 models/learned_patterns.pkl
 ARCHITECTURE.md
+ROADMAP.md
 .github/copilot-instructions.md
 
 # Build artifacts

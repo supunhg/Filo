@@ -410,7 +410,7 @@ Filo's steganography detection now matches the industry-standard `zsteg` tool ex
 
 📊 **Test Coverage**: 85%+ (all tests passing)
 
-**Full Details:** [RELEASE_NOTES_v0.2.7.md](docs/RELEASE_NOTES_v0.2.7.md)
+**Full Details:** [RELEASE_v0.2.7.md](docs/RELEASE_v0.2.7.md)
 
 </details>
 

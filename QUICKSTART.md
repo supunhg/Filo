@@ -1,8 +1,10 @@
-# Filo Quick Start Guide (v0.2.7)
+# Filo Quick Start Guide (v0.2.8)
 
 Welcome to Filo! This guide will get you up and running in 5 minutes.
 
-> ✨ **New in v0.2.7**: zsteg-compatible LSB/MSB steganography detection with automatic base64 decoding! Perfect for CTF challenges.
+> ✨ **New in v0.2.8**: CPU architecture detection for executables (ELF, PE, Mach-O)! Instantly identify x86, ARM, RISC-V, Xtensa, and 90+ other architectures.
+> 
+> **Also in v0.2.7**: zsteg-compatible LSB/MSB steganography detection with automatic base64 decoding! Perfect for CTF challenges.
 > 
 > **Also in v0.2.6**: PCAP network analysis for quick flag hunting in packet captures.
 
@@ -19,7 +21,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.0_all.deb
+sudo dpkg -i filo-forensics_0.2.8_all.deb
 
 # Verify
 filo --version
@@ -60,12 +62,26 @@ filo analyze mysterious_file.bin
 
 **Example Output:**
 ```
-Detected Format: png
-Confidence: 82.6%
+Detected Format: elf
+Confidence: 63.6%
 
-File Size: 116 bytes
-Entropy: 0.89 bits/byte
-SHA256: 667eea...
+🖥️  CPU Architecture:
+  • AMD x86-64 (64-bit, Little-endian)
+    Format: ELF | Machine Code: 0x003E
+
+File Size: 158,632 bytes
+Entropy: 2.26 bits/byte
+SHA256: 833d6f9c...
+```
+
+**For CTF Architecture Challenges:**
+```bash
+# Instantly identify obscure CPU architectures
+filo analyze astronaut
+
+🖥️  CPU Architecture:
+  • Tensilica Xtensa Architecture (32-bit, Little-endian)
+    Format: ELF | Machine Code: 0x005E
 ```
 
 ### 2. List Available Formats

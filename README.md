@@ -16,6 +16,7 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - 🕵️ **Embedded Detection**: Find files hidden inside files - ZIP in EXE, PNG after EOF (malware hunter candy)
 - 🔧 **Tool Fingerprinting**: Identify how/when/with what tools a file was created (forensic attribution)
 - ⚠️ **Polyglot Detection** *(NEW v0.2.5)*: Detect dual-format files (GIFAR, PNG+ZIP, PDF+JS) with risk assessment
+- 🖥️ **CPU Architecture Detection** *(NEW v0.2.8)*: Automatic detection of CPU architecture for executables (90+ architectures: x86, ARM, RISC-V, Xtensa, MIPS, etc.)
 - 🎨 **zsteg-Compatible Steganography** *(v0.2.7)*: 60+ bit plane LSB/MSB extraction (PNG/BMP), auto base64 decoding, file type detection, CTF-optimized
 - 🌐 **PCAP Analysis** *(v0.2.6)*: Network capture file analysis with protocol detection, string extraction, base64 decoding, flag hunting
 - 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
@@ -35,7 +36,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.7_all.deb
+sudo dpkg -i filo-forensics_0.2.8_all.deb
 ```
 
 **Option 2: From Source**
@@ -49,6 +50,9 @@ pip install -e .
 ```bash
 # Analyze unknown file
 filo analyze suspicious.bin
+
+# Identify CPU architecture (ELF/PE/Mach-O executables)
+filo analyze binary  # Shows: x86-64, ARM64, Xtensa, etc.
 
 # Detect steganography (zsteg-compatible with auto base64 decoding)
 filo stego challenge.png  # CTF flag hunting
@@ -96,7 +100,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.7_all.deb
+sudo dpkg -i filo-forensics_0.2.8_all.deb
 
 # Start using immediately
 filo --version
@@ -343,7 +347,43 @@ filo pcap dump.pcap
 ## Previous Releases
 
 <details>
-<summary><strong>v0.2.7 - zsteg-Compatible Steganography (Latest)</strong></summary>
+<summary><strong>v0.2.8 - CPU Architecture Detection (Latest)</strong></summary>
+
+🖥️ **Major Enhancement: CPU Architecture Detection**
+
+Filo now automatically detects and reports CPU architecture for executable files:
+
+```bash
+filo analyze astronaut
+
+# Output:
+# 🖥️  CPU Architecture:
+#   • Tensilica Xtensa Architecture (32-bit, Little-endian)
+#     Format: ELF | Machine Code: 0x005E
+```
+
+**Key Features:**
+- ✅ **90+ architectures supported**: x86, x86-64, ARM, ARM64, RISC-V, MIPS, PowerPC, Xtensa, SPARC, AVR, Alpha, IA-64, and many more
+- ✅ **Three executable formats**: ELF (Linux/Unix), PE/COFF (Windows), Mach-O (macOS/iOS)
+- ✅ **Complete information**: Architecture name, address width (32/64-bit), endianness, machine code
+- ✅ **CTF-optimized**: Instantly solve architecture identification challenges
+- ✅ **Comprehensive testing**: 24 tests covering all major architectures
+
+**Supported Architectures Include:**
+- Common: x86, x86-64, ARM (32/64-bit), RISC-V, MIPS, PowerPC
+- Embedded: Xtensa (IoT/WiFi), AVR (Atmel), SuperH, M68k
+- Specialized: SPARC, Alpha AXP, IA-64 (Itanium), S390 (mainframe)
+- Exotic: VAX, PDP-10/11, TMS320C6000, Elbrus e2k, BPF
+
+**Documentation:** See [docs/ARCHITECTURE_DETECTION.md](docs/ARCHITECTURE_DETECTION.md) for complete guide
+
+📊 **Test Coverage**: 24 new tests (100% passing)
+🎯 **CTF Ready**: Solves architecture challenges in one command
+
+</details>
+
+<details>
+<summary><strong>v0.2.7 - zsteg-Compatible Steganography</strong></summary>
 
 ✨ **Major Enhancement: zsteg Algorithm Compatibility**
 
@@ -370,7 +410,7 @@ Filo's steganography detection now matches the industry-standard `zsteg` tool ex
 
 📊 **Test Coverage**: 85%+ (all tests passing)
 
-**Full Details:** [RELEASE_NOTES_v0.2.7.md](docs/RELEASE_NOTES_v0.2.7.md)
+**Full Details:** [RELEASE_v0.2.7.md](docs/RELEASE_v0.2.7.md)
 
 </details>
 

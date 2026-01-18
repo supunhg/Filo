@@ -134,6 +134,15 @@ class ConfidenceContribution(BaseModel):
     is_penalty: bool = Field(default=False, description="Whether this is a penalty (negative contribution)")
 
 
+class ArchitectureInfo(BaseModel):
+    """CPU architecture information from executable file"""
+    architecture: str = Field(description="CPU architecture name (e.g., 'x86-64', 'ARM64', 'Xtensa')")
+    bits: str = Field(description="Address width: '32-bit', '64-bit', etc.")
+    endian: str = Field(description="Byte order: 'Little-endian' or 'Big-endian'")
+    machine_code: int = Field(description="Machine type code from executable header")
+    format: str = Field(description="Executable format: 'ELF', 'PE', 'Mach-O'")
+
+
 class Contradiction(BaseModel):
     """Detected format contradiction or structural anomaly"""
     severity: str = Field(description="Severity level: 'warning', 'error', 'critical'")
@@ -176,6 +185,9 @@ class AnalysisResult(BaseModel):
     )
     polyglots: list[PolyglotMatch] = Field(
         default_factory=list, description="Polyglot format detections (valid as multiple formats)"
+    )
+    architecture: Optional[ArchitectureInfo] = Field(
+        default=None, description="CPU architecture info for executable files"
     )
     file_size: int
     entropy: Optional[float] = None

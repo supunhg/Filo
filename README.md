@@ -16,8 +16,8 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - 🕵️ **Embedded Detection**: Find files hidden inside files - ZIP in EXE, PNG after EOF (malware hunter candy)
 - 🔧 **Tool Fingerprinting**: Identify how/when/with what tools a file was created (forensic attribution)
 - ⚠️ **Polyglot Detection** *(NEW v0.2.5)*: Detect dual-format files (GIFAR, PNG+ZIP, PDF+JS) with risk assessment
-- 🎨 **Steganography Detection** *(NEW v0.2.6)*: LSB/MSB analysis for PNG/BMP, PDF metadata extraction, trailing data detection, flag pattern recognition
-- 🌐 **PCAP Analysis** *(NEW v0.2.6)*: Network capture file analysis with protocol detection, string extraction, base64 decoding, flag hunting
+- 🎨 **zsteg-Compatible Steganography** *(v0.2.7)*: 60+ bit plane LSB/MSB extraction (PNG/BMP), auto base64 decoding, file type detection, CTF-optimized
+- 🌐 **PCAP Analysis** *(v0.2.6)*: Network capture file analysis with protocol detection, string extraction, base64 decoding, flag hunting
 - 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
 - 🔗 **Hash Lineage Tracking**: Cryptographic chain-of-custody for court evidence
 - 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
@@ -35,7 +35,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.5_all.deb
+sudo dpkg -i filo-forensics_0.2.7_all.deb
 ```
 
 **Option 2: From Source**
@@ -50,11 +50,10 @@ pip install -e .
 # Analyze unknown file
 filo analyze suspicious.bin
 
-# Detect steganography in images (LSB/MSB analysis, metadata, trailing data)
-filo stego image.png
-filo stego image.png --extract="b1,rgb,lsb,xy" -o hidden.txt
-filo stego document.pdf  # PDF metadata extraction
-filo stego photo.jpg     # Trailing data detection
+# Detect steganography (zsteg-compatible with auto base64 decoding)
+filo stego challenge.png  # CTF flag hunting
+filo stego image.png --all  # Show all 60+ bit plane results
+filo stego image.png --extract="b1,rgba,lsb,xy" -o flag.txt
 
 # Analyze PCAP network capture files
 filo pcap capture.pcap
@@ -97,7 +96,7 @@ cd Filo
 ./build-deb.sh
 
 # Install
-sudo dpkg -i filo-forensics_0.2.3_all.deb
+sudo dpkg -i filo-forensics_0.2.7_all.deb
 
 # Start using immediately
 filo --version
@@ -344,6 +343,48 @@ filo pcap dump.pcap
 ## Previous Releases
 
 <details>
+<summary><strong>v0.2.7 - zsteg-Compatible Steganography (Latest)</strong></summary>
+
+✨ **Major Enhancement: zsteg Algorithm Compatibility**
+
+Filo's steganography detection now matches the industry-standard `zsteg` tool exactly:
+
+**Key Features:**
+- ✅ **60+ bit plane configurations** tested per image
+- ✅ **Byte-for-byte identical** extraction compared to zsteg
+- ✅ **Multi-bit extraction** (b1, b2, b4) with correct nibble/byte packing
+- ✅ **Auto base64 decoding** - shows decoded flags directly (improvement over zsteg!)
+- ✅ **File type detection** - OpenPGP keys, Targa, Applesoft BASIC, Alliant
+- ✅ **Smart result filtering** - hides metadata noise by default
+- ✅ **zsteg-style output** - familiar format for CTF players
+
+**Also in v0.2.7:**
+- Reduced embedded object false positives (confidence threshold 0.70 → 0.80)
+- Added format exclusion rules (skip WASM/ICO patterns in ELF/PE binaries)
+- Parent format awareness in embedded detection
+
+**Testing:**
+- Validated on CTF challenge images (picoCTF)
+- Algorithm verification against zsteg reference output
+- Multi-bit extraction tested (b2, b4 bit planes)
+
+📊 **Test Coverage**: 85%+ (all tests passing)
+
+**Full Details:** [RELEASE_NOTES_v0.2.7.md](docs/RELEASE_NOTES_v0.2.7.md)
+
+</details>
+
+<details>
+<summary><strong>v0.2.6 - Steganography & PCAP Analysis</strong></summary>
+
+✨ **New Features:**
+- Steganography detection (LSB/MSB analysis, PDF metadata, trailing data)
+- PCAP network capture analysis with flag hunting
+- Enhanced output filtering
+
+</details>
+
+<details>
 <summary><strong>v0.2.5 - Polyglot & Dual-Format Detection</strong></summary>
 
 ⚠️ **Major New Feature: Polyglot & Dual-Format Detection**
@@ -380,10 +421,10 @@ filo analyze suspicious_image.gif
 🎯 **Supported Formats**: 60+ file formats  
 🔬 **Detection Accuracy**: 95%+ on clean files, 70%+ on corrupted files
 
-## Previous Releases
+</details>
 
 <details>
-<summary><strong>v0.2.4 - Embedded Detection & Tool Fingerprinting</strong></summary>
+<summary><strong>v0.2.4 - Embedded Detection & Tool Fingerprinting (Previous)</strong></summary>
 
 ✨ **Enhancements:**
 1. **Embedded Object Detection** - Find files hidden inside files (ZIP in EXE, PNG after EOF, polyglots)

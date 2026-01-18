@@ -5,6 +5,21 @@ All notable changes to Filo Forensics will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-01-18
+
+### Added
+- **CPU Architecture Detection**: Automatic detection of CPU architecture for executable files
+  - ELF executables: 90+ architectures (x86, x86-64, ARM, ARM64, RISC-V, MIPS, PowerPC, Xtensa, SPARC, AVR, etc.)
+  - PE/COFF executables: Windows executables (x86, x64, ARM, ARM64, IA-64, etc.)
+  - Mach-O executables: macOS/iOS binaries (x86-64, ARM64, PowerPC, etc.)
+  - Displays: Architecture name, address width (32/64-bit), endianness, machine code
+  - Integrated into `filo analyze` command - shows automatically for executable formats
+- Comprehensive test suite: 24 tests covering all major architectures and formats
+
+### Changed
+- Architecture information now displayed in analysis output for ELF, PE, and Mach-O files
+- Updated models to include `ArchitectureInfo` in `AnalysisResult`
+
 ## [0.2.7] - 2026-01-17
 
 ### Added

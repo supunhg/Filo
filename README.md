@@ -18,7 +18,7 @@ Filo transforms unknown binary blobs into classified, repairable, and explainabl
 - ⚠️ **Polyglot Detection** *(NEW v0.2.5)*: Detect dual-format files (GIFAR, PNG+ZIP, PDF+JS) with risk assessment
 - 🎨 **Steganography Detection** *(NEW v0.2.6)*: LSB/MSB analysis for PNG/BMP, PDF metadata extraction, trailing data detection, flag pattern recognition
 - 🌐 **PCAP Analysis** *(NEW v0.2.6)*: Network capture file analysis with protocol detection, string extraction, base64 decoding, flag hunting
-- �🚀 **Batch Processing**: Parallel directory analysis with configurable workers
+- 🚀 **Batch Processing**: Parallel directory analysis with configurable workers
 - 🔗 **Hash Lineage Tracking**: Cryptographic chain-of-custody for court evidence
 - 📦 **Container Detection**: Deep ZIP-based format inspection for Office and archive formats
 - ⚡ **Performance Profiling**: Identify bottlenecks in large-scale analysis

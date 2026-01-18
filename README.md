@@ -266,11 +266,13 @@ filo analyze --all-evidence file.zip
 ## Documentation
 
 - [Quick Start Guide](QUICKSTART.md) - Get started in 5 minutes
+- [Steganography Detection](docs/STEGANOGRAPHY_DETECTION.md) - Hidden data extraction (LSB/MSB, metadata, trailing data) *(NEW)*
 - [Embedded Detection](docs/EMBEDDED_DETECTION.md) - Find files hidden inside files
 - [Tool Fingerprinting](docs/TOOL_FINGERPRINTING.md) - Forensic attribution (who/when/how)
 - [Confidence Breakdown](docs/CONFIDENCE_BREAKDOWN.md) - Auditable detection explanations
 - [Hash Lineage](docs/HASH_LINEAGE.md) - Chain-of-custody tracking
-- [Polyglot Detection](docs/POLYGLOT_DETECTION.md) - Dual-format file detection *(NEW)*
+- [Polyglot Detection](docs/POLYGLOT_DETECTION.md) - Dual-format file detection
+- [Contradiction Detection](docs/CONTRADICTION_DETECTION.md) - Malware & anomaly detection
 - [Architecture](ARCHITECTURE.md) - Detailed system design
 - [Examples](examples/README.md) - Code examples and demos
 
@@ -302,6 +304,8 @@ filo stego image.png
 - ✅ **Flag Recognition**: Automatic CTF flag pattern detection (picoCTF{}, flag{}, HTB{})
 - ✅ **Auto-Decode**: Automatic base64 and zlib decompression
 - ✅ **Extraction**: Save specific channels/methods to files
+
+**Full Guide:** [Steganography Detection Documentation](docs/STEGANOGRAPHY_DETECTION.md)
 
 🌐 **PCAP Network Analysis**
 

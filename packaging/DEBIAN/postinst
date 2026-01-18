@@ -8,8 +8,10 @@ BIN_LINK="/usr/local/bin/filo"
 python3 -m venv $INSTALL_DIR/venv
 
 # Install package in virtual environment
-$INSTALL_DIR/venv/bin/pip install --quiet --upgrade pip
-$INSTALL_DIR/venv/bin/pip install --quiet -e $INSTALL_DIR
+$INSTALL_DIR/venv/bin/pip install --quiet --upgrade pip setuptools wheel
+
+# Install in regular mode (not editable) for better Python 3.13+ compatibility
+$INSTALL_DIR/venv/bin/pip install --quiet $INSTALL_DIR
 
 # Create executable wrapper
 cat > $BIN_LINK << 'EOF'

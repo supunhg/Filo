@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filo-forensics"
-version = "0.2.6"
+version = "0.2.7"
 description = "Forensic Intelligence & Ligation Orchestrator - Battle-tested file forensics platform"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,6 +28,7 @@ dependencies = [
     "click>=8.1.0",
     "rich>=13.0.0",
     "pydantic>=2.0.0",
+    "Pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,9 @@ Repository = "https://github.com/supunhg/Filo"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["filo*"]
+
+[tool.setuptools.package-data]
+filo = ["formats/*.yaml"]
 
 [tool.black]
 line-length = 100
